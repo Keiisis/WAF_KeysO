@@ -54,14 +54,20 @@
     "node": ">=18"
   },
   "peerDependencies": {
-    "next": ">=13",
-    "@supabase/supabase-js": ">=2"
+    "@supabase/supabase-js": ">=2",
+    "next": ">=13"
   },
   "peerDependenciesMeta": {
-    "next": { "optional": true },
-    "@supabase/supabase-js": { "optional": true }
+    "next": {
+      "optional": true
+    },
+    "@supabase/supabase-js": {
+      "optional": true
+    }
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.108.1",
+    "next": "^15.5.19",
     "typescript": "^5.6.0"
   }
 }

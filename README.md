@@ -218,6 +218,29 @@ npm run typecheck
 
 ---
 
+## 🐘 Plugin WordPress prêt à l'emploi
+
+Un **plugin WordPress complet et installable** est fourni dans
+[`wordpress-plugin/`](wordpress-plugin/) :
+
+- Body scanner sur les requêtes REST + admin-ajax
+- Protection brute-force (lockout login) + rate-limiting par IP
+- Honeypot + path traversal + en-têtes de sécurité
+- Helper anti-IDOR (`Guard::assertOwnership`) pour vos endpoints
+- Tableau de bord admin + journal de sécurité
+
+```bash
+# Régénérer l'archive installable
+pwsh wordpress-plugin/build-zip.ps1     # Windows
+bash wordpress-plugin/build-zip.sh      # macOS/Linux
+# → wordpress-plugin/keyso-waf.zip  (Extensions > Ajouter > Téléverser)
+```
+
+## 💼 Commercialisation
+
+Stratégie de monétisation, grille tarifaire (SDK / Plugin / Entreprise),
+packaging et go-to-market : voir **[COMMERCIAL.md](COMMERCIAL.md)**.
+
 ## 📄 Licence
 
 Propriétaire — voir [LICENSE](LICENSE). Usage commercial sous licence écrite KeysO.

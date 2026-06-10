@@ -1,0 +1,39 @@
+/* KeysO-WAF — styles admin */
+.keyso-waf h1 { display: flex; align-items: center; gap: 8px; }
+
+.keyso-cards {
+    display: flex; flex-wrap: wrap; gap: 16px; margin: 20px 0 30px;
+}
+.keyso-card {
+    background: linear-gradient(135deg, #0b1f17, #064e3b);
+    color: #fff; border-radius: 14px; padding: 18px 22px; min-width: 150px;
+    box-shadow: 0 6px 24px rgba(6, 78, 59, 0.25);
+    border: 1px solid rgba(201, 168, 76, 0.35);
+}
+.keyso-card:first-child {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border-color: rgba(201, 168, 76, 0.6);
+}
+.keyso-num { font-size: 30px; font-weight: 900; line-height: 1; color: #C9A84C; }
+.keyso-lbl { margin-top: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.85; }
+
+.keyso-logs { margin-top: 12px; }
+.keyso-tag {
+    display: inline-block; padding: 2px 9px; border-radius: 20px;
+    background: rgba(239, 68, 68, 0.12); color: #b91c1c;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+}
+
+/* Toggle switch */
+.keyso-switch { position: relative; display: inline-block; width: 46px; height: 26px; }
+.keyso-switch input { opacity: 0; width: 0; height: 0; }
+.keyso-switch span {
+    position: absolute; inset: 0; cursor: pointer; background: #cbd5e1;
+    border-radius: 26px; transition: .25s;
+}
+.keyso-switch span::before {
+    content: ''; position: absolute; height: 20px; width: 20px; left: 3px; bottom: 3px;
+    background: #fff; border-radius: 50%; transition: .25s;
+}
+.keyso-switch input:checked + span { background: #10B981; }
+.keyso-switch input:checked + span::before { transform: translateX(20px); }
