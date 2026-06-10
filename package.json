@@ -1,0 +1,67 @@
+{
+  "name": "keyso-waf",
+  "version": "0.1.0",
+  "description": "WAF-SDK portable & framework-agnostic : analyse structurelle de payload (prototype pollution, RCE, SSRF, DoS) + autorisation au niveau objet (anti-IDOR/BOLA). Core pur réutilisable pour bâtir des plugins de sécurité Next.js, Express, WordPress, PHP.",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./core/body-scanner": {
+      "types": "./dist/core/body-scanner.d.ts",
+      "import": "./dist/core/body-scanner.js"
+    },
+    "./core/ownership": {
+      "types": "./dist/core/ownership.d.ts",
+      "import": "./dist/core/ownership.js"
+    }
+  },
+  "files": [
+    "dist",
+    "php",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "waf",
+    "security",
+    "firewall",
+    "idor",
+    "bola",
+    "prototype-pollution",
+    "ssrf",
+    "rce",
+    "owasp",
+    "nextjs",
+    "wordpress",
+    "php",
+    "express",
+    "supabase",
+    "cybersecurity"
+  ],
+  "author": "KeysO",
+  "license": "SEE LICENSE IN LICENSE",
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "next": ">=13",
+    "@supabase/supabase-js": ">=2"
+  },
+  "peerDependenciesMeta": {
+    "next": { "optional": true },
+    "@supabase/supabase-js": { "optional": true }
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}
