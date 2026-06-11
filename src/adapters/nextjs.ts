@@ -146,3 +146,66 @@ export async function assertOwnership(
     }
     return { verdict, rejection: wafReject('Accès refusé.', 403) }
 }
+
+// ══════════════════════════════════════════════════════════════
+// Garde centrale — rend l'analyse de body OBLIGATOIRE par wrapper
+// ══════════════════════════════════════════════════════════════
+//
+// Corrige l'angle mort « le dev a oublié d'appeler scanRequestBody » :
+// au lieu d'un appel manuel dans chaque route, on ENVELOPPE le handler.
+// Le scan devient structurel — impossible à oublier sans retirer le wrapper.
+//
+// Usage :
+//   export const POST = withWafGuard(async (req) => {
+//     const body = await req.json()   // déjà scanné en amont
+//     ...
+//   })
+//
+// On peut aussi imposer une vérification d'ownership avant le handler.
+
+type RouteHandler = (req: Request, ctx?: unknown) => Promise<Response> | Response
+
+export interface WafGuardOptions {
+    /** Options de scan de body (#2). false pour désactiver. */
+    scan?: Partial<BodyScanOptions> | false
+    /** Callback log/alerte sur menace de body. */
+    onBodyThreat?: (verdict: BodyScanVerdict) => void
+    /**
+     * Vérification d'ownership (#1) avant d'entrer dans le handler.
+     * Renvoie les paramètres à partir de la requête, ou null pour sauter.
+     */
+    ownership?: (req: Request, ctx?: unknown) =>
+        | (Omit<AssertOwnershipParams, 'onViolation'> & { onViolation?: AssertOwnershipParams['onViolation'] })
+        | null
+        | Promise<(Omit<AssertOwnershipParams, 'onViolation'> & { onViolation?: AssertOwnershipParams['onViolation'] }) | null>
+}
+
+/**
+ * Enveloppe un handler de route App Router en appliquant, AVANT lui :
+ *   1. l'analyse structurelle du body (sauf si scan === false)
+ *   2. (optionnel) la vérification d'ownership
+ * Le scan est ainsi garanti par construction, pas par discipline.
+ */
+export function withWafGuard(handler: RouteHandler, options: WafGuardOptions = {}): RouteHandler {
+    return async (req: Request, ctx?: unknown): Promise<Response> => {
+        // #2 — Body scan (sur méthodes à corps uniquement)
+        if (options.scan !== false && /^(POST|PUT|PATCH|DELETE)$/i.test(req.method)) {
+            const { rejection } = await scanRequestBody(req, {
+                scan: options.scan || undefined,
+                onThreat: options.onBodyThreat,
+            })
+            if (rejection) return rejection
+        }
+
+        // #1 — Ownership (optionnel)
+        if (options.ownership) {
+            const params = await options.ownership(req, ctx)
+            if (params) {
+                const { rejection } = await assertOwnership(params as AssertOwnershipParams)
+                if (rejection) return rejection
+            }
+        }
+
+        return handler(req, ctx)
+    }
+}

@@ -35,10 +35,41 @@ export type { ResourceMap, ResourceMapEntry } from './adapters/supabase-ownershi
 export {
     scanRequestBody,
     assertOwnership,
+    withWafGuard,
 } from './adapters/nextjs'
 export type {
     ScanRequestBodyResult,
     ScanRequestBodyOptions,
     AssertOwnershipParams,
     AssertOwnershipResult,
+    WafGuardOptions,
 } from './adapters/nextjs'
+
+// ── RLS engine portable (indépendant de Supabase) ──
+export {
+    evaluateAccess,
+    evaluateCondition,
+    filterReadable,
+    assertWritable,
+    TRUE, FALSE, owner, eq, and, or, ref,
+} from './core/rls'
+export type {
+    RlsAuth, RlsAction, RlsRef, RlsValue,
+    RlsCondition, RlsPolicy, RlsContext, RlsVerdict,
+} from './core/rls'
+
+// ── Extraction d'IP anti-spoofing ──
+export { resolveClientIp, ipMatches, isValidIp } from './core/client-ip'
+export type { ClientIpOptions } from './core/client-ip'
+
+// ── Tarpit borné (anti auto-DoS) ──
+export { boundedTarpit, tarpitDelayForTrust, tarpitMetrics } from './core/tarpit'
+export type { TarpitOptions, TarpitResult } from './core/tarpit'
+
+// ── CSRF ──
+export { checkOrigin, checkDoubleSubmit, generateCsrfToken, constantTimeEqual } from './core/csrf'
+export type { CsrfOriginResult } from './core/csrf'
+
+// ── Upload scanner ──
+export { scanUpload } from './core/upload-scanner'
+export type { UploadInput, UploadScanVerdict, UploadThreat } from './core/upload-scanner'

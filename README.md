@@ -218,6 +218,50 @@ npm run typecheck
 
 ---
 
+## 🔒 Moteur RLS portable (sans Supabase)
+
+Un moteur **Row-Level Security** indépendant de toute base : les politiques sont
+des **données** (pas du SQL), évaluées par un interpréteur sûr (zéro `eval`).
+Sémantique alignée sur Postgres (default-deny, politiques permissives, `using`/`check`).
+
+```ts
+import { evaluateAccess, filterReadable, owner, eq, ref, TRUE } from 'keyso-waf'
+
+const policies = [
+  { name: 'own', table: 'invoices', action: 'select', using: owner('user_id') },
+  { name: 'staff', table: 'invoices', action: '*', role: 'admin', using: TRUE },
+  { name: 'insert_self', table: 'invoices', action: 'insert', check: eq('user_id', ref('auth.uid')) },
+]
+
+// Une ligne précise :
+evaluateAccess(policies, { table:'invoices', action:'select', auth:{uid:'u1',role:'client'}, row })
+// Masquage d'un résultat entier :
+const visible = filterReadable(policies, { table:'invoices', action:'select', auth }, rows)
+```
+
+→ Porte l'autorisation au niveau ligne sur **WordPress/MySQL, Mongo, API tierces** —
+partout où il n'y a pas de RLS natif.
+
+## 🧰 Modules de durcissement inclus
+
+| Module | Rôle |
+|--------|------|
+| `resolveClientIp` | Extraction d'IP **anti-spoofing** (proxies de confiance, parse XFF droite→gauche, CIDR) |
+| `boundedTarpit` | Tarpit **borné** par sémaphore global (anti auto-DoS de la concurrence serverless) |
+| `checkOrigin` / `checkDoubleSubmit` | **CSRF** (origin + double-submit, comparaison temps constant) |
+| `scanUpload` | **Upload** : double-extension, path traversal, SVG script, PHP embarqué, polyglote, MIME mismatch |
+| `withWafGuard` | Wrapper de route Next.js : rend le body-scan **obligatoire** (plus d'oubli possible) |
+
+## ✅ Tests
+
+```bash
+npm test        # build + node:test (47 tests : évasion, CVE, IDOR, RLS, IP-spoof, CSRF, upload, tarpit)
+```
+
+Corpus couvrant prototype pollution (via `JSON.parse`, vecteur réel), gadgets RCE,
+SSRF (+ anti-faux-positifs `"version 10.2"`), DoS structurel, IDOR/BOLA, sémantique
+RLS, anti-spoofing IP (CIDR, chaîne XFF), CSRF, uploads malveillants, plafond de tarpit.
+
 ## 🐘 Plugin WordPress prêt à l'emploi
 
 Un **plugin WordPress complet et installable** est fourni dans

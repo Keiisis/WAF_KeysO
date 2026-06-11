@@ -101,12 +101,19 @@ const CLOUD_METADATA_HOSTS = new Set([
  * qui bloquerait "version 10.2" ou "prix 127.0 €".
  */
 export function isInternalHost(host: string): boolean {
-    const h = host.toLowerCase().replace(/:\d+$/, '').trim() // retire le port
+    let h = host.toLowerCase().trim()
+    // Retire le port SANS casser l'IPv6 bare (qui contient des ':') :
+    //  - [ipv6]:port → ipv6      - ipv4:port → ipv4      - bare ipv6 (::1) → inchangé
+    if (h.startsWith('[')) {
+        h = h.replace(/^\[([^\]]+)\](?::\d+)?$/, '$1')
+    } else if (/^\d{1,3}(?:\.\d{1,3}){3}:\d+$/.test(h)) {
+        h = h.replace(/:\d+$/, '')
+    }
 
     if (h === 'localhost' || h.endsWith('.localhost') || h === '0.0.0.0') return true
-    if (h === '[::1]' || h === '::1') return true            // IPv6 loopback
-    if (h.startsWith('[fc') || h.startsWith('[fd')) return true // IPv6 ULA fc00::/7
-    if (h.startsWith('[fe80')) return true                   // IPv6 link-local
+    if (h === '::1') return true                             // IPv6 loopback
+    // IPv6 ULA fc00::/7 + link-local fe80:: — uniquement si c'est bien de l'IPv6
+    if (h.includes(':') && (h.startsWith('fc') || h.startsWith('fd') || h.startsWith('fe80'))) return true
     if (CLOUD_METADATA_HOSTS.has(h)) return true
 
     // IPv4 : parser les 4 octets pour tester les vraies plages privées
