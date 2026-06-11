@@ -69,6 +69,13 @@ Oui. L'IP réelle est lue depuis `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded
 
 == Changelog ==
 
+= 1.1.0 =
+* Alertes temps réel e-mail + Slack/Discord/Teams (webhook), avec seuil de
+  gravité et anti-spam (throttling par menace).
+* Anti-IDOR **sans code** : page admin pour déclarer les routes protégées
+  (route, source de l'ID, table, colonne propriétaire, bypass par capacité) —
+  vérification de propriété à chaque requête REST.
+
 = 1.0.0 =
-* Version initiale : body scanner, anti-IDOR, brute-force, rate-limit, honeypot,
-  security headers, dashboard + journal.
+* Version initiale : body scanner, anti-IDOR (code), brute-force, rate-limit,
+  honeypot, security headers, dashboard + journal.

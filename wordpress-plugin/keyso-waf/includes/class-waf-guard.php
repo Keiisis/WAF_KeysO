@@ -53,6 +53,11 @@ final class Guard
             add_action('wp_login_failed', [$this, 'onLoginFailed'], 10, 1);
             add_action('wp_login', [$this, 'onLoginSuccess'], 10, 2);
         }
+
+        // ── Anti-IDOR no-code (B) ── règles pilotées depuis l'admin
+        if (!empty($this->opt['idor_enabled'])) {
+            (new IdorRules())->boot();
+        }
     }
 
     // ── #2 — Analyse structurelle des requêtes REST ──────────────

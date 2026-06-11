@@ -36,6 +36,11 @@ final class Logger
         if ($count > 10000) {
             $wpdb->query("DELETE FROM {$table} ORDER BY id ASC LIMIT 2000");
         }
+
+        // Alertes temps réel (e-mail / Slack) — throttlées, au-dessus d'un seuil
+        if (class_exists('\KeysO_WAF\Alerts')) {
+            Alerts::maybeNotify($event);
+        }
     }
 
     /** @return array<int,object> Les N derniers événements. */

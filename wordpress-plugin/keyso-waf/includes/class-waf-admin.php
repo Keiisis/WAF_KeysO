@@ -30,6 +30,7 @@ final class Admin
             80
         );
         add_submenu_page('keyso-waf', __('Tableau de bord', 'keyso-waf'), __('Tableau de bord', 'keyso-waf'), 'manage_options', 'keyso-waf', [$this, 'renderDashboard']);
+        add_submenu_page('keyso-waf', __('Anti-IDOR', 'keyso-waf'), __('Anti-IDOR', 'keyso-waf'), 'manage_options', 'keyso-waf-idor', [$this, 'renderIdor']);
         add_submenu_page('keyso-waf', __('Réglages', 'keyso-waf'), __('Réglages', 'keyso-waf'), 'manage_options', 'keyso-waf-settings', [$this, 'renderSettings']);
     }
 
@@ -49,7 +50,7 @@ final class Admin
     {
         $d = keyso_waf_default_options();
         $out = [];
-        foreach (['enabled','scan_rest_bodies','protect_login','rate_limit','block_honeypot','security_headers'] as $k) {
+        foreach (['enabled','scan_rest_bodies','protect_login','rate_limit','block_honeypot','security_headers','alerts_enabled','idor_enabled'] as $k) {
             $out[$k] = !empty($input[$k]) ? 1 : 0;
         }
         $out['login_max_attempts'] = max(1, (int)($input['login_max_attempts'] ?? $d['login_max_attempts']));
@@ -57,6 +58,12 @@ final class Admin
         $out['rate_limit_max']     = max(10, (int)($input['rate_limit_max'] ?? $d['rate_limit_max']));
         $out['rate_limit_window']  = max(10, (int)($input['rate_limit_window'] ?? $d['rate_limit_window']));
         $out['whitelist_ips']      = sanitize_textarea_field($input['whitelist_ips'] ?? '');
+
+        // ── Alertes ──
+        $out['alerts_email']         = sanitize_email($input['alerts_email'] ?? '');
+        $out['alerts_slack_webhook'] = esc_url_raw($input['alerts_slack_webhook'] ?? '');
+        $out['alerts_min_severity']  = max(1, min(4, (int)($input['alerts_min_severity'] ?? $d['alerts_min_severity'])));
+        $out['alerts_throttle_min']  = max(1, (int)($input['alerts_throttle_min'] ?? $d['alerts_throttle_min']));
         return $out;
     }
 
@@ -132,6 +139,29 @@ final class Admin
                     $this->number($o, 'rate_limit_max', __('Requêtes max par fenêtre', 'keyso-waf'));
                     $this->number($o, 'rate_limit_window', __('Fenêtre de rate-limit (secondes)', 'keyso-waf'));
                     ?>
+                    <tr><th colspan="2"><h2 style="margin:18px 0 0"><?php esc_html_e('🔔 Alertes temps réel', 'keyso-waf'); ?></h2></th></tr>
+                    <?php
+                    $this->toggle($o, 'alerts_enabled', __('Activer les alertes (e-mail / Slack)', 'keyso-waf'));
+                    ?>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('E-mail destinataire', 'keyso-waf'); ?></th>
+                        <td><input type="email" name="keyso_waf_options[alerts_email]" value="<?php echo esc_attr((string)$o['alerts_email']); ?>" class="regular-text" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>" /></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Webhook Slack / Discord / Teams', 'keyso-waf'); ?></th>
+                        <td>
+                            <input type="url" name="keyso_waf_options[alerts_slack_webhook]" value="<?php echo esc_attr((string)$o['alerts_slack_webhook']); ?>" class="large-text code" placeholder="https://hooks.slack.com/services/..." />
+                            <p class="description"><?php esc_html_e('Collez l\'URL du webhook entrant. Compatible Slack, Discord (avec /slack), Mattermost.', 'keyso-waf'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Gravité minimale (1–4)', 'keyso-waf'); ?></th>
+                        <td><input type="number" min="1" max="4" name="keyso_waf_options[alerts_min_severity]" value="<?php echo esc_attr((string)$o['alerts_min_severity']); ?>" class="small-text" />
+                        <span class="description"><?php esc_html_e('1=info · 2=modéré · 3=élevé · 4=critique', 'keyso-waf'); ?></span></td>
+                    </tr>
+                    <?php
+                    $this->number($o, 'alerts_throttle_min', __('Anti-spam : 1 alerte / menace / X minutes', 'keyso-waf'));
+                    ?>
                     <tr>
                         <th scope="row"><?php esc_html_e('IPs en liste blanche', 'keyso-waf'); ?></th>
                         <td>
@@ -143,6 +173,118 @@ final class Admin
                 <?php submit_button(); ?>
             </form>
         </div>
+        <?php
+    }
+
+    public function renderIdor(): void
+    {
+        // ── Sauvegarde (formulaire array → option dédiée) ──
+        if (isset($_POST['keyso_idor_nonce']) && wp_verify_nonce($_POST['keyso_idor_nonce'], 'keyso_idor_save')) {
+            $rules = IdorRules::sanitizeRules(wp_unslash($_POST['rules'] ?? []));
+            update_option(IdorRules::OPTION, $rules);
+
+            // Activer/désactiver le module
+            $o = keyso_waf_get_options();
+            $o['idor_enabled'] = !empty($_POST['idor_enabled']) ? 1 : 0;
+            update_option('keyso_waf_options', $o);
+
+            echo '<div class="notice notice-success is-dismissible"><p>'
+                . esc_html__('Règles anti-IDOR enregistrées.', 'keyso-waf') . '</p></div>';
+        }
+
+        $o     = keyso_waf_get_options();
+        $rules = IdorRules::getRules();
+        $rules[] = []; // ligne vide pour ajout
+        ?>
+        <div class="wrap keyso-waf">
+            <h1>🔐 KeysO-WAF — <?php esc_html_e('Anti-IDOR (sans code)', 'keyso-waf'); ?></h1>
+            <p class="description" style="max-width:760px">
+                <?php esc_html_e("Déclarez quelles routes REST exposent des ressources possédées par un utilisateur. KeysO-WAF vérifiera, à chaque requête, que l'utilisateur connecté est bien le propriétaire — sinon la ressource est masquée (404). Aucune ligne de code requise.", 'keyso-waf'); ?>
+            </p>
+
+            <form method="post">
+                <?php wp_nonce_field('keyso_idor_save', 'keyso_idor_nonce'); ?>
+
+                <p>
+                    <label class="keyso-switch">
+                        <input type="checkbox" name="idor_enabled" value="1" <?php checked(!empty($o['idor_enabled'])); ?> />
+                        <span></span>
+                    </label>
+                    <strong style="vertical-align:super;margin-left:8px"><?php esc_html_e('Activer la protection anti-IDOR', 'keyso-waf'); ?></strong>
+                </p>
+
+                <table class="widefat striped keyso-idor-table">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e('Libellé', 'keyso-waf'); ?></th>
+                            <th><?php esc_html_e('Route contient', 'keyso-waf'); ?></th>
+                            <th><?php esc_html_e('ID depuis', 'keyso-waf'); ?></th>
+                            <th><?php esc_html_e('Param', 'keyso-waf'); ?></th>
+                            <th><?php esc_html_e('Table', 'keyso-waf'); ?></th>
+                            <th><?php esc_html_e('Col. ID', 'keyso-waf'); ?></th>
+                            <th><?php esc_html_e('Col. propriétaire', 'keyso-waf'); ?></th>
+                            <th><?php esc_html_e('Bypass (capacité)', 'keyso-waf'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody id="keyso-idor-rows">
+                        <?php foreach ($rules as $i => $r): ?>
+                            <tr>
+                                <td><input type="text" name="rules[<?php echo (int)$i; ?>][label]" value="<?php echo esc_attr($r['label'] ?? ''); ?>" placeholder="Commandes WooCommerce" /></td>
+                                <td><input type="text" name="rules[<?php echo (int)$i; ?>][match]" value="<?php echo esc_attr($r['match'] ?? ''); ?>" placeholder="/wc/v3/orders/" /></td>
+                                <td>
+                                    <select name="rules[<?php echo (int)$i; ?>][id_source]">
+                                        <option value="end_of_path" <?php selected(($r['id_source'] ?? '') === 'end_of_path'); ?>><?php esc_html_e('Fin de l\'URL', 'keyso-waf'); ?></option>
+                                        <option value="query_param" <?php selected(($r['id_source'] ?? '') === 'query_param'); ?>><?php esc_html_e('Paramètre', 'keyso-waf'); ?></option>
+                                    </select>
+                                </td>
+                                <td><input type="text" name="rules[<?php echo (int)$i; ?>][id_param]" value="<?php echo esc_attr($r['id_param'] ?? ''); ?>" placeholder="id" size="6" /></td>
+                                <td><input type="text" name="rules[<?php echo (int)$i; ?>][table]" value="<?php echo esc_attr($r['table'] ?? ''); ?>" placeholder="posts" /></td>
+                                <td><input type="text" name="rules[<?php echo (int)$i; ?>][id_column]" value="<?php echo esc_attr($r['id_column'] ?? 'ID'); ?>" size="6" /></td>
+                                <td><input type="text" name="rules[<?php echo (int)$i; ?>][owner_column]" value="<?php echo esc_attr($r['owner_column'] ?? ''); ?>" placeholder="post_author" /></td>
+                                <td><input type="text" name="rules[<?php echo (int)$i; ?>][staff_cap]" value="<?php echo esc_attr($r['staff_cap'] ?? ''); ?>" placeholder="manage_options" /></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+
+                <p>
+                    <button type="button" class="button" id="keyso-idor-add">+ <?php esc_html_e('Ajouter une règle', 'keyso-waf'); ?></button>
+                </p>
+
+                <p class="description" style="max-width:760px">
+                    <strong><?php esc_html_e('Exemple', 'keyso-waf'); ?> :</strong>
+                    <?php esc_html_e('Route contient', 'keyso-waf'); ?> <code>/wc/v3/orders/</code> ·
+                    <?php esc_html_e('ID depuis', 'keyso-waf'); ?> = <em><?php esc_html_e('Fin de l\'URL', 'keyso-waf'); ?></em> ·
+                    <?php esc_html_e('Table', 'keyso-waf'); ?> <code>posts</code> ·
+                    <?php esc_html_e('Col. ID', 'keyso-waf'); ?> <code>ID</code> ·
+                    <?php esc_html_e('Col. propriétaire', 'keyso-waf'); ?> <code>post_author</code>.
+                </p>
+
+                <?php submit_button(__('Enregistrer les règles', 'keyso-waf')); ?>
+            </form>
+        </div>
+
+        <script>
+        (function () {
+            var btn = document.getElementById('keyso-idor-add');
+            var body = document.getElementById('keyso-idor-rows');
+            if (!btn || !body) return;
+            btn.addEventListener('click', function () {
+                var idx = body.querySelectorAll('tr').length;
+                var tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td><input type="text" name="rules['+idx+'][label]" placeholder="Libellé"></td>' +
+                    '<td><input type="text" name="rules['+idx+'][match]" placeholder="/wc/v3/orders/"></td>' +
+                    '<td><select name="rules['+idx+'][id_source]"><option value="end_of_path"><?php echo esc_js(__('Fin de l\'URL', 'keyso-waf')); ?></option><option value="query_param"><?php echo esc_js(__('Paramètre', 'keyso-waf')); ?></option></select></td>' +
+                    '<td><input type="text" name="rules['+idx+'][id_param]" size="6"></td>' +
+                    '<td><input type="text" name="rules['+idx+'][table]" placeholder="posts"></td>' +
+                    '<td><input type="text" name="rules['+idx+'][id_column]" value="ID" size="6"></td>' +
+                    '<td><input type="text" name="rules['+idx+'][owner_column]" placeholder="post_author"></td>' +
+                    '<td><input type="text" name="rules['+idx+'][staff_cap]" placeholder="manage_options"></td>';
+                body.appendChild(tr);
+            });
+        })();
+        </script>
         <?php
     }
 

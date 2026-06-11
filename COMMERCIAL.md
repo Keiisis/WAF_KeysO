@@ -124,8 +124,8 @@ Pour les organisations qui veulent SLA, règles custom, audit.
 | Core body-scanner + ownership (TS + PHP) | SDK Community + Plugin Free | ✅ Fait |
 | Plugin WordPress installable | Plugin Free / Pro | ✅ Fait |
 | `npm run build` → dist | Publication npm | ✅ Fait |
-| Alertes e-mail / Slack | Plugin Pro | ⬜ |
-| Mapping anti-IDOR sans code (UI WP) | Plugin Pro | ⬜ |
+| Alertes e-mail / Slack | Plugin Pro | ✅ Fait |
+| Mapping anti-IDOR sans code (UI WP) | Plugin Pro | ✅ Fait |
 | Géo-blocage + threat intel (ASN/VPN/Tor) | Plugin Pro | ⬜ |
 | Intégration Freemius (licences + updates) | Tout le Pro | ⬜ |
 | Adapters Express / Fastify / Laravel packagés | SDK Pro | ⬜ |
