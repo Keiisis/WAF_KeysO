@@ -60,11 +60,19 @@ final class BodyScanner
      */
     public static function isInternalHost(string $host): bool
     {
-        $h = strtolower(trim(preg_replace('/:\d+$/', '', $host)));
+        $h = strtolower(trim($host));
+        // Retire le port SANS casser l'IPv6 bare (::1) :
+        //  [ipv6]:port -> ipv6 ; ipv4:port -> ipv4 ; bare ipv6 -> inchangé
+        if (str_starts_with($h, '[')) {
+            $h = preg_replace('/^\[([^\]]+)\](?::\d+)?$/', '$1', $h);
+        } elseif (preg_match('/^\d{1,3}(?:\.\d{1,3}){3}:\d+$/', $h)) {
+            $h = preg_replace('/:\d+$/', '', $h);
+        }
 
         if ($h === 'localhost' || str_ends_with($h, '.localhost') || $h === '0.0.0.0') return true;
-        if ($h === '[::1]' || $h === '::1') return true;
-        if (str_starts_with($h, '[fc') || str_starts_with($h, '[fd') || str_starts_with($h, '[fe80')) return true;
+        if ($h === '::1') return true;
+        // ULA fc00::/7 + link-local fe80:: — uniquement si c'est bien de l'IPv6
+        if (strpos($h, ':') !== false && (str_starts_with($h, 'fc') || str_starts_with($h, 'fd') || str_starts_with($h, 'fe80'))) return true;
         if (in_array($h, self::CLOUD_METADATA, true)) return true;
 
         if (preg_match('/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/', $h, $m)) {

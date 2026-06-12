@@ -73,3 +73,18 @@ export type { CsrfOriginResult } from './core/csrf'
 // ── Upload scanner ──
 export { scanUpload } from './core/upload-scanner'
 export type { UploadInput, UploadScanVerdict, UploadThreat } from './core/upload-scanner'
+
+// ── Inspection des réponses (data leakage sortant) ──
+export { inspectResponse } from './core/response-inspector'
+export type { ResponseInspectVerdict, ResponseLeak, LeakType } from './core/response-inspector'
+
+// ── Anomalies d'authentification (credential-stuffing + impossible travel) ──
+export {
+    detectCredentialStuffing,
+    detectImpossibleTravel,
+    haversineKm,
+} from './core/auth-anomaly'
+export type {
+    LoginAttempt, StuffingVerdict, StuffingThresholds,
+    GeoLogin, TravelVerdict,
+} from './core/auth-anomaly'
