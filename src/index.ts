@@ -88,3 +88,15 @@ export type {
     LoginAttempt, StuffingVerdict, StuffingThresholds,
     GeoLogin, TravelVerdict,
 } from './core/auth-anomaly'
+
+// ── Store partagé (anti-morcellement RAM serverless) ──
+export {
+    MemoryKv,
+    rateLimit,
+    blockIdentity,
+    isBlocked,
+    recordViolation,
+} from './core/kv'
+export type { KvStore, RateLimitResult } from './core/kv'
+export { createUpstashKv, resolveKv } from './adapters/upstash'
+export type { UpstashOptions } from './adapters/upstash'
