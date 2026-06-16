@@ -1,0 +1,137 @@
+# Copyright (C) 2026 KeysO
+# This file is distributed under the same license as the KeysO-WAF plugin.
+msgid ""
+msgstr ""
+"Project-Id-Version: KeysO-WAF 1.5.0\n"
+"Report-Msgid-Bugs-To: https://github.com/Keiisis/WAF_KeysO\n"
+"POT-Creation-Date: 2026-06-16T00:00:00+00:00\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language-Team: KeysO\n"
+"X-Generator: KeysO-WAF\n"
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Tableau de bord"
+msgstr ""
+
+msgid "Réglages"
+msgstr ""
+
+msgid "Licence"
+msgstr ""
+
+msgid "Anti-IDOR"
+msgstr ""
+
+msgid "Anti-IDOR (sans code)"
+msgstr ""
+
+msgid "Activer le pare-feu"
+msgstr ""
+
+msgid "Analyse structurelle des requêtes REST (Prototype Pollution / RCE / SSRF / DoS)"
+msgstr ""
+
+msgid "Analyser aussi les POST de formulaires front (hors REST)"
+msgstr ""
+
+msgid "Protection brute-force (lockout login)"
+msgstr ""
+
+msgid "Limitation du débit par IP"
+msgstr ""
+
+msgid "Blocage des chemins pièges (honeypot)"
+msgstr ""
+
+msgid "En-têtes de sécurité HTTP"
+msgstr ""
+
+msgid "🔔 Alertes temps réel"
+msgstr ""
+
+msgid "Activer les alertes (e-mail / Slack)"
+msgstr ""
+
+msgid "🌐 Réseau & IP"
+msgstr ""
+
+msgid "En-tête IP de confiance"
+msgstr ""
+
+msgid "REMOTE_ADDR (recommandé — aucun proxy)"
+msgstr ""
+
+msgid "IPs en liste blanche"
+msgstr ""
+
+msgid "IPs en liste noire"
+msgstr ""
+
+msgid "Message de blocage"
+msgstr ""
+
+msgid "Menaces bloquées (30 j)"
+msgstr ""
+
+msgid "Derniers événements"
+msgstr ""
+
+msgid "Exporter (CSV)"
+msgstr ""
+
+msgid "Date"
+msgstr ""
+
+msgid "IP"
+msgstr ""
+
+msgid "Menace"
+msgstr ""
+
+msgid "Chemin"
+msgstr ""
+
+msgid "Détail"
+msgstr ""
+
+msgid "Requête bloquée par le pare-feu applicatif."
+msgstr ""
+
+msgid "Requête invalide"
+msgstr ""
+
+msgid "Accès refusé"
+msgstr ""
+
+msgid "Ressource introuvable."
+msgstr ""
+
+msgid "Clé de licence"
+msgstr ""
+
+msgid "Activer la licence"
+msgstr ""
+
+msgid "Désactiver sur ce domaine"
+msgstr ""
+
+msgid "Active (Premium)"
+msgstr ""
+
+msgid "Invalide"
+msgstr ""
+
+msgid "Inactive (mode communautaire)"
+msgstr ""
+
+msgid "Licence activée — fonctions premium débloquées."
+msgstr ""
+
+msgid "Licence désactivée sur ce domaine."
+msgstr ""
+
+msgid "Veuillez saisir une clé de licence."
+msgstr ""

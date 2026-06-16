@@ -31,8 +31,16 @@ final class Guard
 
     public function boot(): void
     {
-        if ($this->isWhitelisted($this->clientIp())) {
+        $ip = $this->clientIp();
+
+        if ($this->isWhitelisted($ip)) {
             return; // IP de confiance : aucun contrôle de blocage
+        }
+
+        // ── Liste noire : blocage immédiat et inconditionnel ──
+        if ($this->isBlocklisted($ip)) {
+            add_action('init', [$this, 'blockBlacklisted'], 0);
+            return;
         }
 
         if (!empty($this->opt['security_headers'])) {
@@ -48,15 +56,49 @@ final class Guard
             add_filter('rest_pre_dispatch', [$this, 'scanRestRequest'], 5, 3);
             add_action('admin_init', [$this, 'scanAdminAjaxBody'], 1);
         }
+        // Scan des POST de formulaires front classiques (hors REST/admin)
+        if (!empty($this->opt['scan_front_post'])) {
+            add_action('template_redirect', [$this, 'scanFrontPost'], 0);
+        }
         if (!empty($this->opt['protect_login'])) {
             add_filter('authenticate', [$this, 'preAuthLockout'], 30, 1);
             add_action('wp_login_failed', [$this, 'onLoginFailed'], 10, 1);
             add_action('wp_login', [$this, 'onLoginSuccess'], 10, 2);
         }
 
-        // ── Anti-IDOR no-code (B) ── règles pilotées depuis l'admin
-        if (!empty($this->opt['idor_enabled'])) {
+        // ── Anti-IDOR no-code (B) — fonction PREMIUM (licence valide requise) ──
+        if (!empty($this->opt['idor_enabled']) && License::isPro()) {
             (new IdorRules())->boot();
+        }
+    }
+
+    /** Message de blocage personnalisable (option), sinon défaut. */
+    private function msg(): string
+    {
+        $custom = trim((string)($this->opt['block_message'] ?? ''));
+        return $custom !== '' ? $custom : __('Requête bloquée par le pare-feu applicatif.', 'keyso-waf');
+    }
+
+    /** Blocage d'une IP en liste noire. */
+    public function blockBlacklisted(): void
+    {
+        $this->block('blocklist', 'ip_blocklist', 'IP en liste noire : ' . $this->clientIp());
+        status_header(403);
+        nocache_headers();
+        wp_die(esc_html($this->msg()), esc_html__('Accès refusé', 'keyso-waf'), ['response' => 403]);
+    }
+
+    /** Scan structurel des POST front (formulaires non-REST, non-admin). */
+    public function scanFrontPost(): void
+    {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || empty($_POST)) {
+            return;
+        }
+        $verdict = BodyScanner::scan(wp_unslash($_POST));
+        if (!$verdict['safe']) {
+            $this->block('front_post', $verdict['threat'], $verdict['detail']);
+            status_header(400);
+            wp_die(esc_html($this->msg()), esc_html__('Requête invalide', 'keyso-waf'), ['response' => 400]);
         }
     }
 
@@ -207,6 +249,12 @@ final class Guard
     {
         $list = array_filter(array_map('trim', explode("\n", (string)($this->opt['whitelist_ips'] ?? ''))));
         return in_array($ip, $list, true);
+    }
+
+    private function isBlocklisted(string $ip): bool
+    {
+        $list = array_filter(array_map('trim', explode("\n", (string)($this->opt['blocklist_ips'] ?? ''))));
+        return $list !== [] && in_array($ip, $list, true);
     }
 
     private function clientIp(): string

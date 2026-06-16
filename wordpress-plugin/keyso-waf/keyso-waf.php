@@ -3,7 +3,7 @@
  * Plugin Name:       KeysO-WAF — Pare-feu applicatif surpuissant
  * Plugin URI:        https://github.com/Keiisis/WAF_KeysO
  * Description:        WAF nouvelle génération : analyse structurelle des payloads (Prototype Pollution, RCE, SSRF, DoS), autorisation au niveau objet (anti-IDOR/BOLA), protection brute-force, rate-limiting, honeypot et journal de sécurité. Léger, sans dépendance externe.
- * Version:           1.4.0
+ * Version:           1.5.0
  * Requires at least: 5.8
  * Requires PHP:      8.0
  * Author:            KeysO
@@ -18,23 +18,36 @@ if (!defined('ABSPATH')) {
     exit; // Pas d'accès direct
 }
 
-define('KEYSO_WAF_VERSION', '1.4.0');
+define('KEYSO_WAF_VERSION', '1.5.0');
 define('KEYSO_WAF_FILE', __FILE__);
 define('KEYSO_WAF_DIR', plugin_dir_path(__FILE__));
 define('KEYSO_WAF_URL', plugin_dir_url(__FILE__));
 define('KEYSO_WAF_TABLE', 'keyso_waf_logs');
+
+// Serveur de licences (anti-piratage). Pointez vers VOTRE endpoint de
+// vérification, ou définissez-le dans wp-config.php. Vide = mode communautaire
+// (protection cœur active, fonctions premium désactivées).
+if (!defined('KEYSO_WAF_LICENSE_API')) {
+    define('KEYSO_WAF_LICENSE_API', ''); // ex: 'https://www.retourgagnantbenin.bj/api/license/verify'
+}
 
 // ── Core portable (port PHP) ──────────────────────────────────
 require_once KEYSO_WAF_DIR . 'includes/BodyScanner.php';
 require_once KEYSO_WAF_DIR . 'includes/Ownership.php';
 
 // ── Modules du plugin ─────────────────────────────────────────
+require_once KEYSO_WAF_DIR . 'includes/class-waf-license.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-logger.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-alerts.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-rate-limit.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-idor-rules.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-guard.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-admin.php';
+
+// ── i18n : chargement des traductions (.pot/.mo dans /languages) ──
+add_action('init', function () {
+    load_plugin_textdomain('keyso-waf', false, dirname(plugin_basename(__FILE__)) . '/languages');
+});
 
 /**
  * Options par défaut (créées à l'activation).
@@ -59,6 +72,9 @@ function keyso_waf_default_options(): array
         // À régler sur un en-tête proxy UNIQUEMENT si le site est derrière ce
         // proxy/CDN (sinon un attaquant falsifie son IP → bypass whitelist + rate-limit).
         'trusted_ip_header'   => '',
+        'blocklist_ips'       => '',  // IPs bloquées d'office (une par ligne)
+        'scan_front_post'     => 0,   // scanner les POST de formulaires front
+        'block_message'       => '',  // message de blocage personnalisé (vide = défaut)
 
         // ── Alertes temps réel (A) ──
         'alerts_enabled'        => 0,
@@ -131,4 +147,6 @@ if (is_admin()) {
     add_action('plugins_loaded', function () {
         (new \KeysO_WAF\Admin())->boot();
     }, 2);
+    // Revalidation périodique de la licence (tolérante aux pannes réseau)
+    add_action('admin_init', ['\KeysO_WAF\License', 'maybeRevalidate']);
 }

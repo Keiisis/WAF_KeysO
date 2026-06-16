@@ -4,7 +4,7 @@ Tags: security, firewall, waf, brute-force, idor, ssrf, rce, hardening
 Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 8.0
-Stable tag: 1.4.0
+Stable tag: 1.5.0
 License: Proprietary (commercial)
 
 WAF nouvelle génération : analyse structurelle des payloads, anti-IDOR, brute-force, rate-limiting, honeypot et journal de sécurité. Léger, sans dépendance.
@@ -72,6 +72,21 @@ site est derrière un proxy/CDN, sélectionnez l'en-tête correspondant
 attaquant pourrait usurper son IP et contourner les protections.
 
 == Changelog ==
+
+= 1.5.0 =
+* Activation par CLÉ DE LICENCE (anti-piratage) : page Licence, vérification
+  contre un serveur configurable (KEYSO_WAF_LICENSE_API), revalidation
+  quotidienne tolérante aux pannes. Modèle éthique : la protection cœur reste
+  TOUJOURS active ; seules les fonctions premium (alertes, anti-IDOR no-code)
+  sont réservées aux licences valides.
+* Liste NOIRE d'IP (blocage immédiat 403) + message de blocage personnalisable.
+* Analyse des POST de formulaires front classiques (hors REST).
+* Export CSV du journal de sécurité depuis le tableau de bord.
+* Rate-limiting : incrément ATOMIQUE via object cache (Redis/Memcached) si
+  présent — élimine la condition de course sous forte charge.
+* Internationalisation : fichier de traduction `languages/keyso-waf.pot`.
+* Tests d'exécution du moteur (17 cas : body scanner, anti-IDOR, anti-injection,
+  détection d'IP anti-spoofing) — `wordpress-plugin/tests/test-plugin.php`.
 
 = 1.4.0 =
 * Sécurité : durcissement de la détection d'IP cliente. Par défaut `REMOTE_ADDR`

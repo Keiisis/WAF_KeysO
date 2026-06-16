@@ -16,6 +16,85 @@ final class Admin
         add_action('admin_menu', [$this, 'menu']);
         add_action('admin_init', [$this, 'registerSettings']);
         add_action('admin_enqueue_scripts', [$this, 'assets']);
+        add_action('admin_post_keyso_waf_export_logs', [$this, 'exportLogs']);
+    }
+
+    /** Export CSV du journal de sécurité (admin + nonce). */
+    public function exportLogs(): void
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__('Accès refusé.', 'keyso-waf'), '', ['response' => 403]);
+        }
+        check_admin_referer('keyso_waf_export_logs');
+
+        $rows = Logger::recent(5000);
+        nocache_headers();
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="keyso-waf-logs-' . gmdate('Ymd-His') . '.csv"');
+        $out = fopen('php://output', 'w');
+        fprintf($out, "\xEF\xBB\xBF"); // BOM UTF-8
+        fputcsv($out, ['Date', 'IP', 'Méthode', 'Menace', 'Action', 'Chemin', 'Détail', 'User-Agent']);
+        foreach ($rows as $r) {
+            fputcsv($out, [
+                $r->created_at ?? '', $r->ip ?? '', $r->method ?? '', $r->threat ?? '',
+                $r->action ?? '', $r->path ?? '', $r->detail ?? '', $r->user_agent ?? '',
+            ]);
+        }
+        fclose($out);
+        exit;
+    }
+
+    /** Page d'activation de licence (anti-piratage). */
+    public function renderLicense(): void
+    {
+        if (isset($_POST['keyso_license_nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['keyso_license_nonce'])), 'keyso_license')) {
+            if (isset($_POST['activate'])) {
+                $res = License::activate(sanitize_text_field(wp_unslash($_POST['license_key'] ?? '')));
+            } elseif (isset($_POST['deactivate'])) {
+                $res = License::deactivate();
+            }
+            if (isset($res)) {
+                $cls = !empty($res['success']) ? 'notice-success' : 'notice-error';
+                echo '<div class="notice ' . esc_attr($cls) . ' is-dismissible"><p>' . esc_html($res['message']) . '</p></div>';
+            }
+        }
+
+        $status = License::status();
+        $isPro  = License::isPro();
+        $key    = License::key();
+        ?>
+        <div class="wrap keyso-waf">
+            <h1>🔑 KeysO-WAF — <?php esc_html_e('Licence', 'keyso-waf'); ?></h1>
+            <p>
+                <?php esc_html_e('Statut :', 'keyso-waf'); ?>
+                <strong style="color:<?php echo $isPro ? '#008751' : '#E8112D'; ?>">
+                    <?php echo esc_html($isPro ? __('Active (Premium)', 'keyso-waf') : ($status === 'invalid' ? __('Invalide', 'keyso-waf') : __('Inactive (mode communautaire)', 'keyso-waf'))); ?>
+                </strong>
+            </p>
+            <p class="description" style="max-width:720px">
+                <?php esc_html_e('La protection cœur (analyse des requêtes, brute-force, rate-limit, honeypot, en-têtes) est TOUJOURS active. Une licence valide débloque les fonctions premium : alertes temps réel (e-mail/Slack) et anti-IDOR sans code.', 'keyso-waf'); ?>
+            </p>
+            <form method="post" style="margin-top:16px">
+                <?php wp_nonce_field('keyso_license', 'keyso_license_nonce'); ?>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Clé de licence', 'keyso-waf'); ?></th>
+                        <td><input type="text" name="license_key" value="<?php echo esc_attr($key); ?>" class="regular-text code" placeholder="KEYSO-XXXX-XXXX-XXXX" <?php disabled($isPro); ?> /></td>
+                    </tr>
+                </table>
+                <?php if ($isPro): ?>
+                    <button type="submit" name="deactivate" class="button"><?php esc_html_e('Désactiver sur ce domaine', 'keyso-waf'); ?></button>
+                <?php else: ?>
+                    <button type="submit" name="activate" class="button button-primary"><?php esc_html_e('Activer la licence', 'keyso-waf'); ?></button>
+                <?php endif; ?>
+            </form>
+            <?php if (License::apiUrl() === ''): ?>
+                <div class="notice notice-info inline" style="margin-top:16px"><p>
+                    <?php esc_html_e('Aucun serveur de licence configuré (constante KEYSO_WAF_LICENSE_API). En mode communautaire, la protection cœur fonctionne ; les fonctions premium restent désactivées.', 'keyso-waf'); ?>
+                </p></div>
+            <?php endif; ?>
+        </div>
+        <?php
     }
 
     public function menu(): void
@@ -32,6 +111,7 @@ final class Admin
         add_submenu_page('keyso-waf', __('Tableau de bord', 'keyso-waf'), __('Tableau de bord', 'keyso-waf'), 'manage_options', 'keyso-waf', [$this, 'renderDashboard']);
         add_submenu_page('keyso-waf', __('Anti-IDOR', 'keyso-waf'), __('Anti-IDOR', 'keyso-waf'), 'manage_options', 'keyso-waf-idor', [$this, 'renderIdor']);
         add_submenu_page('keyso-waf', __('Réglages', 'keyso-waf'), __('Réglages', 'keyso-waf'), 'manage_options', 'keyso-waf-settings', [$this, 'renderSettings']);
+        add_submenu_page('keyso-waf', __('Licence', 'keyso-waf'), __('Licence', 'keyso-waf'), 'manage_options', 'keyso-waf-license', [$this, 'renderLicense']);
     }
 
     public function assets($hook): void
@@ -50,9 +130,11 @@ final class Admin
     {
         $d = keyso_waf_default_options();
         $out = [];
-        foreach (['enabled','scan_rest_bodies','protect_login','rate_limit','block_honeypot','security_headers','alerts_enabled','idor_enabled'] as $k) {
+        foreach (['enabled','scan_rest_bodies','scan_front_post','protect_login','rate_limit','block_honeypot','security_headers','alerts_enabled','idor_enabled'] as $k) {
             $out[$k] = !empty($input[$k]) ? 1 : 0;
         }
+        $out['blocklist_ips'] = sanitize_textarea_field($input['blocklist_ips'] ?? '');
+        $out['block_message'] = sanitize_text_field($input['block_message'] ?? '');
         $out['login_max_attempts'] = max(1, (int)($input['login_max_attempts'] ?? $d['login_max_attempts']));
         $out['login_lockout_min']  = max(1, (int)($input['login_lockout_min'] ?? $d['login_lockout_min']));
         $out['rate_limit_max']     = max(10, (int)($input['rate_limit_max'] ?? $d['rate_limit_max']));
@@ -94,7 +176,11 @@ final class Admin
                 <?php endforeach; ?>
             </div>
 
-            <h2><?php esc_html_e('Derniers événements', 'keyso-waf'); ?></h2>
+            <h2 style="display:flex;align-items:center;gap:12px">
+                <?php esc_html_e('Derniers événements', 'keyso-waf'); ?>
+                <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=keyso_waf_export_logs'), 'keyso_waf_export_logs')); ?>"
+                   class="button button-secondary" style="font-size:12px">⬇ <?php esc_html_e('Exporter (CSV)', 'keyso-waf'); ?></a>
+            </h2>
             <table class="widefat striped keyso-logs">
                 <thead>
                     <tr>
@@ -134,7 +220,8 @@ final class Admin
                 <table class="form-table" role="presentation">
                     <?php
                     $this->toggle($o, 'enabled', __('Activer le pare-feu', 'keyso-waf'));
-                    $this->toggle($o, 'scan_rest_bodies', __('Analyse structurelle des requêtes (Prototype Pollution / RCE / SSRF / DoS)', 'keyso-waf'));
+                    $this->toggle($o, 'scan_rest_bodies', __('Analyse structurelle des requêtes REST (Prototype Pollution / RCE / SSRF / DoS)', 'keyso-waf'));
+                    $this->toggle($o, 'scan_front_post', __('Analyser aussi les POST de formulaires front (hors REST)', 'keyso-waf'));
                     $this->toggle($o, 'protect_login', __('Protection brute-force (lockout login)', 'keyso-waf'));
                     $this->toggle($o, 'rate_limit', __('Limitation du débit par IP', 'keyso-waf'));
                     $this->toggle($o, 'block_honeypot', __('Blocage des chemins pièges (honeypot)', 'keyso-waf'));
@@ -187,6 +274,20 @@ final class Admin
                         <td>
                             <textarea name="keyso_waf_options[whitelist_ips]" rows="4" cols="40" class="large-text code"><?php echo esc_textarea((string)$o['whitelist_ips']); ?></textarea>
                             <p class="description"><?php esc_html_e('Une IP par ligne. Ces IPs sont exemptées de tout blocage.', 'keyso-waf'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('IPs en liste noire', 'keyso-waf'); ?></th>
+                        <td>
+                            <textarea name="keyso_waf_options[blocklist_ips]" rows="4" cols="40" class="large-text code"><?php echo esc_textarea((string)($o['blocklist_ips'] ?? '')); ?></textarea>
+                            <p class="description"><?php esc_html_e('Une IP par ligne. Ces IPs sont bloquées immédiatement (403) sur tout le site.', 'keyso-waf'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Message de blocage', 'keyso-waf'); ?></th>
+                        <td>
+                            <input type="text" name="keyso_waf_options[block_message]" value="<?php echo esc_attr((string)($o['block_message'] ?? '')); ?>" class="large-text" placeholder="<?php esc_attr_e('Requête bloquée par le pare-feu applicatif.', 'keyso-waf'); ?>" />
+                            <p class="description"><?php esc_html_e('Texte affiché aux requêtes bloquées (laisser vide pour le message par défaut).', 'keyso-waf'); ?></p>
                         </td>
                     </tr>
                 </table>

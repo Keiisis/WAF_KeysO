@@ -1,0 +1,78 @@
+<?php
+/**
+ * Tests d'exécution du moteur du plugin KeysO-WAF (sans WordPress).
+ *
+ * Vérifie le cœur de sécurité réellement embarqué dans le plugin :
+ *   • BodyScanner  : détection prototype pollution / RCE / SSRF / DoS
+ *   • Ownership    : autorisation au niveau objet (anti-IDOR/BOLA)
+ *   • IdorRules    : safeIdent (anti-injection d'identifiant SQL)
+ *   • Guard        : détection d'IP cliente (fix anti-spoofing)
+ *
+ * Usage : php wordpress-plugin/tests/test-plugin.php
+ */
+
+define('ABSPATH', __DIR__ . '/');           // simule l'environnement WP
+$PLUGIN = dirname(__DIR__) . '/keyso-waf';
+
+// ── Stubs minimaux des fonctions WordPress utilisées par les méthodes testées ──
+if (!function_exists('keyso_waf_get_options')) {
+    $GLOBALS['__opts'] = [];
+    function keyso_waf_get_options(): array { return $GLOBALS['__opts']; }
+}
+
+require_once $PLUGIN . '/includes/BodyScanner.php';
+require_once $PLUGIN . '/includes/Ownership.php';
+require_once $PLUGIN . '/includes/class-waf-idor-rules.php';
+require_once $PLUGIN . '/includes/class-waf-guard.php';
+
+use WafCore\BodyScanner;
+use WafCore\Ownership;
+use KeysO_WAF\IdorRules;
+use KeysO_WAF\Guard;
+
+$pass = 0; $fail = 0;
+function ok(bool $cond, string $label): void {
+    global $pass, $fail;
+    if ($cond) { $pass++; echo "  ✓ $label\n"; }
+    else { $fail++; echo "  ✗ ÉCHEC : $label\n"; }
+}
+
+echo "\n=== BodyScanner — détection structurelle ===\n";
+ok(BodyScanner::scan(['name' => 'Jean', 'age' => 30])['safe'] === true, 'payload légitime accepté');
+ok(BodyScanner::scan(json_decode('{"__proto__":{"admin":true}}', true))['threat'] === 'prototype_pollution', 'prototype pollution détectée');
+ok(BodyScanner::scan(['cb' => 'require("child_process").exec("rm -rf /")'])['threat'] === 'rce_gadget', 'gadget RCE (child_process) détecté');
+ok(BodyScanner::scan(['x' => 'shell_exec($_GET[c])'])['threat'] === 'rce_gadget', 'gadget RCE (shell_exec) détecté');
+ok(BodyScanner::scan(['url' => 'http://169.254.169.254/latest/meta-data/'])['threat'] === 'ssrf_internal_target', 'SSRF cloud-metadata détecté');
+ok(BodyScanner::scan(['url' => 'file:///etc/passwd'])['threat'] === 'ssrf_internal_target', 'SSRF schéma file:// détecté');
+ok(BodyScanner::scan(['s' => str_repeat('A', 60000)])['threat'] === 'oversized_string', 'chaîne géante (DoS) détectée');
+$deep = '0'; for ($i = 0; $i < 30; $i++) { $deep = [$deep]; }
+ok(BodyScanner::scan($deep)['threat'] === 'recursive_depth', 'profondeur excessive (DoS) détectée');
+
+echo "\n=== Ownership — anti-IDOR / BOLA ===\n";
+$resolver = fn(array $q) => ['ownerId' => '42', 'notFound' => false];
+ok(Ownership::verify($resolver, ['userId' => '42', 'resourceType' => 'order', 'resourceId' => '7'])['allowed'] === true, 'propriétaire légitime autorisé');
+ok(Ownership::verify($resolver, ['userId' => '99', 'resourceType' => 'order', 'resourceId' => '7'])['allowed'] === false, 'usurpateur (IDOR) refusé');
+$missing = fn(array $q) => ['ownerId' => null, 'notFound' => true];
+ok(Ownership::verify($missing, ['userId' => '42', 'resourceType' => 'o', 'resourceId' => '1'], ['missingPolicy' => 'deny'])['allowed'] === false, 'ressource introuvable → deny (fail-closed)');
+
+echo "\n=== IdorRules::safeIdent — anti-injection SQL ===\n";
+ok(IdorRules::safeIdent('post_author') === 'post_author', 'identifiant valide conservé');
+ok(IdorRules::safeIdent('id; DROP TABLE users;--') === 'idDROPTABLEusers', 'injection SQL neutralisée');
+ok(IdorRules::safeIdent('`owner`') === 'owner', 'backticks retirés');
+
+echo "\n=== Guard::staticClientIp — fix anti-spoofing IP ===\n";
+$_SERVER['REMOTE_ADDR'] = '203.0.113.10';
+$_SERVER['HTTP_X_FORWARDED_FOR'] = '1.2.3.4';
+// Défaut (trusted_ip_header vide) → DOIT ignorer X-Forwarded-For
+$GLOBALS['__opts'] = ['trusted_ip_header' => ''];
+ok(Guard::staticClientIp() === '203.0.113.10', "défaut : REMOTE_ADDR utilisé, XFF falsifié ignoré");
+// Proxy explicitement configuré → lit l'en-tête
+$GLOBALS['__opts'] = ['trusted_ip_header' => 'HTTP_X_FORWARDED_FOR'];
+ok(Guard::staticClientIp() === '1.2.3.4', 'proxy configuré : en-tête de confiance lu');
+// En-tête de confiance configuré mais absent → repli REMOTE_ADDR
+unset($_SERVER['HTTP_X_FORWARDED_FOR']);
+ok(Guard::staticClientIp() === '203.0.113.10', 'en-tête absent : repli sur REMOTE_ADDR');
+
+echo "\n────────────────────────────────────────\n";
+echo ($fail === 0 ? "✅ TOUS LES TESTS PASSENT" : "❌ $fail ÉCHEC(S)") . "  ($pass réussis)\n";
+exit($fail === 0 ? 0 : 1);

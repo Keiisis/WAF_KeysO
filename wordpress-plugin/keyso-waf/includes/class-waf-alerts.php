@@ -43,6 +43,10 @@ final class Alerts
         if (empty($opt['alerts_enabled'])) {
             return;
         }
+        // Alertes temps réel = fonction PREMIUM (licence valide requise)
+        if (!License::isPro()) {
+            return;
+        }
 
         $threat   = (string)($event['threat'] ?? 'unknown');
         $severity = self::SEVERITY[$threat] ?? 2;

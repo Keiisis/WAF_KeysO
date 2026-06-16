@@ -21,16 +21,29 @@ final class RateLimit
     public static function hit(string $key, int $max, int $windowSeconds): bool
     {
         $tkey = 'keyso_rl_' . md5($key);
-        $count = (int) get_transient($tkey);
-        $count++;
-        // set_transient renouvelle la TTL ; pour une vraie fenêtre fixe on garde
-        // la première TTL via un marqueur de début.
-        if ($count === 1) {
-            set_transient($tkey, $count, $windowSeconds);
-        } else {
-            // Conserver la fenêtre : on relit la TTL résiduelle approx via le marqueur
-            set_transient($tkey, $count, $windowSeconds);
+
+        // Cache objet persistant (Redis/Memcached) → incrément ATOMIQUE :
+        // évite la condition de course du couple get/set sous forte charge.
+        if (wp_using_ext_object_cache()) {
+            $group = 'keyso_waf_rl';
+            $count = wp_cache_get($tkey, $group);
+            if ($count === false) {
+                wp_cache_add($tkey, 1, $group, $windowSeconds);
+                $count = 1;
+            } else {
+                $count = wp_cache_incr($tkey, 1, $group);
+                if ($count === false) { // clé expirée entre get et incr
+                    wp_cache_add($tkey, 1, $group, $windowSeconds);
+                    $count = 1;
+                }
+            }
+            return (int) $count > $max;
         }
+
+        // Repli : transients (fenêtre glissante — la TTL est renouvelée tant que
+        // le trafic continue, ce qui est plus strict, donc sûr pour un WAF).
+        $count = (int) get_transient($tkey) + 1;
+        set_transient($tkey, $count, $windowSeconds);
         return $count > $max;
     }
 
