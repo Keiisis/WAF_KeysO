@@ -3,7 +3,7 @@
  * Plugin Name:       KeysO-WAF — Pare-feu applicatif surpuissant
  * Plugin URI:        https://github.com/Keiisis/WAF_KeysO
  * Description:        WAF nouvelle génération : analyse structurelle des payloads (Prototype Pollution, RCE, SSRF, DoS), autorisation au niveau objet (anti-IDOR/BOLA), protection brute-force, rate-limiting, honeypot et journal de sécurité. Léger, sans dépendance externe.
- * Version:           1.1.0
+ * Version:           1.4.0
  * Requires at least: 5.8
  * Requires PHP:      8.0
  * Author:            KeysO
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
     exit; // Pas d'accès direct
 }
 
-define('KEYSO_WAF_VERSION', '1.1.0');
+define('KEYSO_WAF_VERSION', '1.4.0');
 define('KEYSO_WAF_FILE', __FILE__);
 define('KEYSO_WAF_DIR', plugin_dir_path(__FILE__));
 define('KEYSO_WAF_URL', plugin_dir_url(__FILE__));
@@ -55,6 +55,10 @@ function keyso_waf_default_options(): array
         'rate_limit_max'      => 120, // requêtes / fenêtre
         'rate_limit_window'   => 60,  // fenêtre (secondes)
         'whitelist_ips'       => '',  // IPs exemptées (une par ligne)
+        // IP réelle du client : par défaut REMOTE_ADDR (NON falsifiable).
+        // À régler sur un en-tête proxy UNIQUEMENT si le site est derrière ce
+        // proxy/CDN (sinon un attaquant falsifie son IP → bypass whitelist + rate-limit).
+        'trusted_ip_header'   => '',
 
         // ── Alertes temps réel (A) ──
         'alerts_enabled'        => 0,

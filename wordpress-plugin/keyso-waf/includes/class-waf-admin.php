@@ -59,6 +59,11 @@ final class Admin
         $out['rate_limit_window']  = max(10, (int)($input['rate_limit_window'] ?? $d['rate_limit_window']));
         $out['whitelist_ips']      = sanitize_textarea_field($input['whitelist_ips'] ?? '');
 
+        // En-tête IP de confiance : liste blanche stricte (anti-spoofing)
+        $allowedHeaders = ['', 'HTTP_CF_CONNECTING_IP', 'HTTP_TRUE_CLIENT_IP', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR'];
+        $th = (string)($input['trusted_ip_header'] ?? '');
+        $out['trusted_ip_header'] = in_array($th, $allowedHeaders, true) ? $th : '';
+
         // ── Alertes ──
         $out['alerts_email']         = sanitize_email($input['alerts_email'] ?? '');
         $out['alerts_slack_webhook'] = esc_url_raw($input['alerts_slack_webhook'] ?? '');
@@ -162,6 +167,21 @@ final class Admin
                     <?php
                     $this->number($o, 'alerts_throttle_min', __('Anti-spam : 1 alerte / menace / X minutes', 'keyso-waf'));
                     ?>
+                    <tr><th colspan="2"><h2 style="margin:18px 0 0"><?php esc_html_e('🌐 Réseau & IP', 'keyso-waf'); ?></h2></th></tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('En-tête IP de confiance', 'keyso-waf'); ?></th>
+                        <td>
+                            <?php $th = (string)($o['trusted_ip_header'] ?? ''); ?>
+                            <select name="keyso_waf_options[trusted_ip_header]">
+                                <option value="" <?php selected($th, ''); ?>><?php esc_html_e('REMOTE_ADDR (recommandé — aucun proxy)', 'keyso-waf'); ?></option>
+                                <option value="HTTP_CF_CONNECTING_IP" <?php selected($th, 'HTTP_CF_CONNECTING_IP'); ?>>Cloudflare (CF-Connecting-IP)</option>
+                                <option value="HTTP_TRUE_CLIENT_IP" <?php selected($th, 'HTTP_TRUE_CLIENT_IP'); ?>>True-Client-IP (Akamai/Cloudflare Enterprise)</option>
+                                <option value="HTTP_X_REAL_IP" <?php selected($th, 'HTTP_X_REAL_IP'); ?>>X-Real-IP (Nginx)</option>
+                                <option value="HTTP_X_FORWARDED_FOR" <?php selected($th, 'HTTP_X_FORWARDED_FOR'); ?>>X-Forwarded-For</option>
+                            </select>
+                            <p class="description"><?php esc_html_e("⚠️ Laissez sur REMOTE_ADDR sauf si votre site est RÉELLEMENT derrière ce proxy/CDN. Sinon, un attaquant falsifie son IP et contourne la liste blanche, le rate-limit et le lockout brute-force.", 'keyso-waf'); ?></p>
+                        </td>
+                    </tr>
                     <tr>
                         <th scope="row"><?php esc_html_e('IPs en liste blanche', 'keyso-waf'); ?></th>
                         <td>

@@ -4,7 +4,7 @@ Tags: security, firewall, waf, brute-force, idor, ssrf, rce, hardening
 Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 8.0
-Stable tag: 1.0.0
+Stable tag: 1.4.0
 License: Proprietary (commercial)
 
 WAF nouvelle génération : analyse structurelle des payloads, anti-IDOR, brute-force, rate-limiting, honeypot et journal de sécurité. Léger, sans dépendance.
@@ -65,9 +65,28 @@ Non. L'analyse est en mémoire, sans appel réseau. Le rate-limiting utilise
 l'object cache si disponible.
 
 = Compatible avec un reverse-proxy / Cloudflare ? =
-Oui. L'IP réelle est lue depuis `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded-For`.
+Oui. Par défaut, l'IP est lue depuis `REMOTE_ADDR` (non falsifiable). Si votre
+site est derrière un proxy/CDN, sélectionnez l'en-tête correspondant
+(`CF-Connecting-IP`, `X-Real-IP`, `X-Forwarded-For`…) dans Réglages → Réseau & IP.
+⚠️ Ne l'activez QUE si vous êtes réellement derrière ce proxy : sinon un
+attaquant pourrait usurper son IP et contourner les protections.
 
 == Changelog ==
+
+= 1.4.0 =
+* Sécurité : durcissement de la détection d'IP cliente. Par défaut `REMOTE_ADDR`
+  (non falsifiable) ; en-tête proxy lu uniquement si explicitement configuré.
+  Corrige un contournement possible de la liste blanche, du rate-limit et du
+  lockout brute-force par usurpation d'en-tête `X-Forwarded-For`.
+* Réglage « En-tête IP de confiance » (Réglages → Réseau & IP).
+* Store partagé distribué (KvStore + Upstash) côté SDK.
+
+= 1.3.0 =
+* Inspecteur de réponse + détection d'anomalies d'authentification (SDK).
+* Suite de tests d'exécution PHP.
+
+= 1.2.0 =
+* Durcissement complet + moteur RLS portable + suite de tests.
 
 = 1.1.0 =
 * Alertes temps réel e-mail + Slack/Discord/Teams (webhook), avec seuil de

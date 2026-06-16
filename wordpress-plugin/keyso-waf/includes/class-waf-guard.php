@@ -216,15 +216,23 @@ final class Guard
 
     public static function staticClientIp(): string
     {
-        // Ordre de confiance — adapter selon votre reverse-proxy / CDN
-        foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR'] as $h) {
-            if (!empty($_SERVER[$h])) {
-                $ip = trim(explode(',', $_SERVER[$h])[0]);
-                if (filter_var($ip, FILTER_VALIDATE_IP)) {
-                    return $ip;
-                }
+        // SÉCURITÉ : par défaut on n'utilise QUE REMOTE_ADDR (non falsifiable).
+        // Les en-têtes proxy (X-Forwarded-For, CF-Connecting-IP…) sont
+        // contrôlables par le client ; les lire sans proxy de confiance permet
+        // d'usurper son IP → contourner la liste blanche, le rate-limit et le
+        // lockout brute-force. On ne lit donc un en-tête QUE si l'admin l'a
+        // explicitement désigné (= le site est réellement derrière ce proxy).
+        $opts    = function_exists('keyso_waf_get_options') ? keyso_waf_get_options() : [];
+        $trusted = isset($opts['trusted_ip_header']) ? (string) $opts['trusted_ip_header'] : '';
+
+        if ($trusted !== '' && !empty($_SERVER[$trusted])) {
+            $ip = trim(explode(',', (string) $_SERVER[$trusted])[0]);
+            if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                return $ip;
             }
         }
-        return '0.0.0.0';
+
+        $remote = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+        return filter_var($remote, FILTER_VALIDATE_IP) ? $remote : '0.0.0.0';
     }
 }
