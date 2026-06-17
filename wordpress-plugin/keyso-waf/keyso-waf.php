@@ -3,7 +3,7 @@
  * Plugin Name:       KeysO-WAF — Pare-feu applicatif surpuissant
  * Plugin URI:        https://github.com/Keiisis/WAF_KeysO
  * Description:        WAF nouvelle génération : analyse structurelle des payloads (Prototype Pollution, RCE, SSRF, DoS), autorisation au niveau objet (anti-IDOR/BOLA), protection brute-force, rate-limiting, honeypot et journal de sécurité. Léger, sans dépendance externe.
- * Version:           1.7.1
+ * Version:           1.8.0
  * Requires at least: 5.8
  * Requires PHP:      8.0
  * Author:            KeysO
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
     exit; // Pas d'accès direct
 }
 
-define('KEYSO_WAF_VERSION', '1.7.1');
+define('KEYSO_WAF_VERSION', '1.8.0');
 define('KEYSO_WAF_FILE', __FILE__);
 define('KEYSO_WAF_DIR', plugin_dir_path(__FILE__));
 define('KEYSO_WAF_URL', plugin_dir_url(__FILE__));
@@ -43,6 +43,7 @@ require_once KEYSO_WAF_DIR . 'includes/class-waf-rate-limit.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-idor-rules.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-hardening.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-2fa.php';
+require_once KEYSO_WAF_DIR . 'includes/class-waf-surface.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-guard.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-admin.php';
 
@@ -86,6 +87,19 @@ function keyso_waf_default_options(): array
         'db_integrity_alerts' => 1,   // alerte création/élévation administrateur
         'enforce_strong_passwords' => 1, // refuse les mots de passe faibles
         'two_factor'          => 1,   // double authentification TOTP (enrôlement par utilisateur)
+
+        // ── Surfaces & limitation post-intrusion ──
+        'disable_file_editor'      => 1, // désactive l'éditeur de thèmes/extensions (anti-RCE)
+        'lock_plugin_theme_install' => 0, // verrouille install/upload/suppression extensions & thèmes
+        'restrict_app_passwords'   => 1, // Application Passwords refusés aux comptes 2FA
+        'protect_sensitive_paths'  => 1, // bloque readme.html, *.sql, *.bak, debug.log, .git…
+        'admin_ip_allowlist'       => '', // si renseigné : seules ces IP accèdent à wp-admin/wp-login
+
+        // ── Défense active (auto-ban comportemental) ──
+        'auto_ban_enabled'   => 1,    // bannit une IP qui accumule des blocages
+        'auto_ban_threshold' => 10,   // nb de blocages avant ban
+        'auto_ban_window'    => 600,  // fenêtre d'observation (s)
+        'auto_ban_duration'  => 3600, // durée du ban (s)
 
         // ── Alertes temps réel (A) ──
         'alerts_enabled'        => 0,

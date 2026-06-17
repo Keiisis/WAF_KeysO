@@ -43,6 +43,12 @@ final class Guard
             return;
         }
 
+        // ── Défense active : IP auto-bannie (a accumulé trop de blocages) ──
+        if (!empty($this->opt['auto_ban_enabled']) && Logger::isAutoBanned($ip)) {
+            add_action('init', [$this, 'blockAutoBanned'], 0);
+            return;
+        }
+
         if (!empty($this->opt['security_headers'])) {
             add_action('send_headers', [$this, 'sendSecurityHeaders']);
         }
@@ -69,6 +75,9 @@ final class Guard
         // ── Durcissement WordPress (SQLi, énumération, intégrité base) — cœur ──
         (new Hardening($this->opt))->boot();
 
+        // ── Durcissement des surfaces & limitation post-intrusion — cœur ──
+        (new Surface($this->opt))->boot();
+
         // ── Double authentification TOTP (enrôlement par utilisateur) — cœur ──
         if (!empty($this->opt['two_factor'])) {
             (new TwoFactor())->boot();
@@ -91,6 +100,14 @@ final class Guard
     public function blockBlacklisted(): void
     {
         $this->block('blocklist', 'ip_blocklist', 'IP en liste noire : ' . $this->clientIp());
+        status_header(403);
+        nocache_headers();
+        wp_die(esc_html($this->msg()), esc_html__('Accès refusé', 'keyso-waf'), ['response' => 403]);
+    }
+
+    /** Blocage d'une IP auto-bannie (défense active). */
+    public function blockAutoBanned(): void
+    {
         status_header(403);
         nocache_headers();
         wp_die(esc_html($this->msg()), esc_html__('Accès refusé', 'keyso-waf'), ['response' => 403]);

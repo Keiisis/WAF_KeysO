@@ -130,9 +130,13 @@ final class Admin
     {
         $d = keyso_waf_default_options();
         $out = [];
-        foreach (['enabled','scan_rest_bodies','scan_front_post','protect_login','rate_limit','block_honeypot','security_headers','alerts_enabled','idor_enabled','sqli_detection','block_user_enum','generic_login_errors','disable_xmlrpc','db_integrity_alerts','enforce_strong_passwords','two_factor'] as $k) {
+        foreach (['enabled','scan_rest_bodies','scan_front_post','protect_login','rate_limit','block_honeypot','security_headers','alerts_enabled','idor_enabled','sqli_detection','block_user_enum','generic_login_errors','disable_xmlrpc','db_integrity_alerts','enforce_strong_passwords','two_factor','disable_file_editor','lock_plugin_theme_install','restrict_app_passwords','protect_sensitive_paths','auto_ban_enabled'] as $k) {
             $out[$k] = !empty($input[$k]) ? 1 : 0;
         }
+        $out['admin_ip_allowlist'] = sanitize_textarea_field($input['admin_ip_allowlist'] ?? '');
+        $out['auto_ban_threshold'] = max(3, (int)($input['auto_ban_threshold'] ?? 10));
+        $out['auto_ban_window']    = max(60, (int)($input['auto_ban_window'] ?? 600));
+        $out['auto_ban_duration']  = max(60, (int)($input['auto_ban_duration'] ?? 3600));
         $out['blocklist_ips'] = sanitize_textarea_field($input['blocklist_ips'] ?? '');
         $out['block_message'] = sanitize_text_field($input['block_message'] ?? '');
         $out['login_max_attempts'] = max(1, (int)($input['login_max_attempts'] ?? $d['login_max_attempts']));
@@ -236,6 +240,27 @@ final class Admin
                     $this->toggle($o, 'disable_xmlrpc', __('Désactiver XML-RPC (recommandé si ni Jetpack ni app mobile)', 'keyso-waf'));
                     $this->toggle($o, 'enforce_strong_passwords', __('Imposer des mots de passe forts (≥12 car., contre le cassage par dictionnaire)', 'keyso-waf'));
                     $this->toggle($o, 'two_factor', __('Double authentification (2FA TOTP) — enrôlement dans chaque profil utilisateur', 'keyso-waf'));
+                    ?>
+                    <tr><th colspan="2"><h2 style="margin:18px 0 0"><?php esc_html_e('🧱 Surfaces & limitation post-intrusion', 'keyso-waf'); ?></h2></th></tr>
+                    <?php
+                    $this->toggle($o, 'disable_file_editor', __('Désactiver l\'éditeur de fichiers thèmes/extensions (anti-RCE si admin compromis)', 'keyso-waf'));
+                    $this->toggle($o, 'restrict_app_passwords', __('Refuser les Application Passwords aux comptes 2FA (anti-contournement API)', 'keyso-waf'));
+                    $this->toggle($o, 'protect_sensitive_paths', __('Bloquer les chemins sensibles (readme.html, *.sql, *.bak, debug.log, .git…)', 'keyso-waf'));
+                    $this->toggle($o, 'lock_plugin_theme_install', __('Verrouiller installation/upload/suppression d\'extensions & thèmes (limite un admin volé)', 'keyso-waf'));
+                    ?>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Liste blanche IP — wp-admin / wp-login', 'keyso-waf'); ?></th>
+                        <td>
+                            <textarea name="keyso_waf_options[admin_ip_allowlist]" rows="3" cols="40" class="large-text code"><?php echo esc_textarea((string)($o['admin_ip_allowlist'] ?? '')); ?></textarea>
+                            <p class="description"><?php esc_html_e('Une IP par ligne. Si renseigné, SEULES ces IP peuvent atteindre l\'administration et le login — un identifiant volé devient inutile ailleurs. ⚠️ Laissez vide si votre IP change, au risque de vous bloquer.', 'keyso-waf'); ?></p>
+                        </td>
+                    </tr>
+                    <tr><th colspan="2"><h2 style="margin:18px 0 0"><?php esc_html_e('🛡️ Défense active (auto-ban)', 'keyso-waf'); ?></h2></th></tr>
+                    <?php
+                    $this->toggle($o, 'auto_ban_enabled', __('Bannir automatiquement une IP qui accumule des blocages', 'keyso-waf'));
+                    $this->number($o, 'auto_ban_threshold', __('Nombre de blocages avant ban', 'keyso-waf'));
+                    $this->number($o, 'auto_ban_window', __('Fenêtre d\'observation (secondes)', 'keyso-waf'));
+                    $this->number($o, 'auto_ban_duration', __('Durée du ban (secondes)', 'keyso-waf'));
                     $this->number($o, 'login_max_attempts', __('Tentatives login avant lockout', 'keyso-waf'));
                     $this->number($o, 'login_lockout_min', __('Durée du lockout (minutes)', 'keyso-waf'));
                     $this->number($o, 'rate_limit_max', __('Requêtes max par fenêtre', 'keyso-waf'));

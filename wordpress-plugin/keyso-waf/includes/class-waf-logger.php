@@ -41,6 +41,38 @@ final class Logger
         if (class_exists('\KeysO_WAF\Alerts')) {
             Alerts::maybeNotify($event);
         }
+
+        // Défense active : auto-ban d'une IP qui accumule des blocages
+        if ((string)($event['action'] ?? '') === 'block') {
+            self::recordViolation((string)($event['ip'] ?? ''));
+        }
+    }
+
+    /** Incrémente le compteur de violations d'une IP ; auto-ban si seuil dépassé. */
+    public static function recordViolation(string $ip): void
+    {
+        if ($ip === '' || $ip === '0.0.0.0') return;
+        $o = function_exists('keyso_waf_get_options') ? keyso_waf_get_options() : [];
+        if (empty($o['auto_ban_enabled'])) return;
+
+        $threshold = max(3, (int)($o['auto_ban_threshold'] ?? 10));
+        $window    = max(60, (int)($o['auto_ban_window'] ?? 600));
+        $duration  = max(60, (int)($o['auto_ban_duration'] ?? 3600));
+
+        $key = 'keyso_viol_' . md5($ip);
+        $n = (int) get_transient($key) + 1;
+        set_transient($key, $n, $window);
+        if ($n >= $threshold) {
+            set_transient('keyso_autoban_' . md5($ip), 1, $duration);
+            delete_transient($key);
+        }
+    }
+
+    /** L'IP est-elle auto-bannie ? (défense active) */
+    public static function isAutoBanned(string $ip): bool
+    {
+        if ($ip === '' || $ip === '0.0.0.0') return false;
+        return (bool) get_transient('keyso_autoban_' . md5($ip));
     }
 
     /** @return array<int,object> Les N derniers événements. */

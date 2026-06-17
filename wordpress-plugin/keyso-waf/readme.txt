@@ -4,7 +4,7 @@ Tags: security, firewall, waf, brute-force, idor, ssrf, rce, hardening
 Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 8.0
-Stable tag: 1.7.1
+Stable tag: 1.8.0
 License: Proprietary (commercial)
 
 WAF nouvelle génération : analyse structurelle des payloads, anti-IDOR, brute-force, rate-limiting, honeypot et journal de sécurité. Léger, sans dépendance.
@@ -72,6 +72,31 @@ site est derrière un proxy/CDN, sélectionnez l'en-tête correspondant
 attaquant pourrait usurper son IP et contourner les protections.
 
 == Changelog ==
+
+= 1.8.0 =
+* Module SURFACES & limitation post-intrusion (couvre bien plus que wp-login) :
+  - Éditeur de fichiers thèmes/extensions désactivé (DISALLOW_FILE_EDIT) → tue le
+    vecteur RCE n°1 même si un compte admin est compromis.
+  - Liste blanche d'IP pour wp-admin / wp-login : un identifiant admin VOLÉ
+    devient inutile depuis une IP non autorisée (validé : 403 même avec le bon
+    mot de passe). Défense ultime contre le vol d'identifiants.
+  - Application Passwords refusés aux comptes 2FA (sinon ils contournent le 2nd
+    facteur via l'API REST en Basic Auth).
+  - Verrou optionnel installation/upload/suppression d'extensions & thèmes.
+  - Blocage des chemins sensibles : via PHP (wp-config.bak, .git, debug.log…) ET
+    via règles .htaccess auto-générées pour les fichiers STATIQUES servis par le
+    serveur avant PHP (readme.html, license.txt, *.sql, *.bak, -Indexes).
+  - Rate-limit de wp-cron.php (amplification DoS).
+* DÉFENSE ACTIVE : auto-ban comportemental — une IP qui accumule N blocages
+  (défaut 10/10 min) est bannie automatiquement (403) pour 1 h. Centralisé.
+* Validé par ATTAQUES RÉELLES (WordPress + MySQL conteneurisé) :
+  - hydra brute-force wp-login avec le vrai mot de passe en 8e position →
+    « 0 valid password found » (lockout dès le 5e essai).
+  - wpscan attaque par mot de passe (mdp faible dans la liste) → rien trouvé,
+    étranglé par 429 + auto-ban ; énumération users & sauvegardes de config
+    bloquées ; readme.html / license.txt → 403 via .htaccess.
+  - Scénario « login admin volé » → 403 partout depuis IP non autorisée.
+* Tests portés à 42 cas (auto-ban inclus).
 
 = 1.7.1 =
 * Sécurité : la double authentification couvre désormais XML-RPC. L'auth d'un

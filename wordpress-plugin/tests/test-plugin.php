@@ -38,6 +38,7 @@ require_once $PLUGIN . '/includes/class-waf-guard.php';
 require_once $PLUGIN . '/includes/class-waf-rate-limit.php';
 require_once $PLUGIN . '/includes/class-waf-hardening.php';
 require_once $PLUGIN . '/includes/class-waf-2fa.php';
+require_once $PLUGIN . '/includes/class-waf-logger.php';
 
 use WafCore\BodyScanner;
 use WafCore\Ownership;
@@ -127,6 +128,18 @@ ok(\KeysO_WAF\Hardening::isWeakPassword('password123') === true, 'mot de passe c
 ok(\KeysO_WAF\Hardening::isWeakPassword('Soleil2024') === true, 'trop court (<12) rejeté');
 ok(\KeysO_WAF\Hardening::isWeakPassword('Tr0ub4dour&3xplore!') === false, 'mot de passe fort accepté');
 ok(\KeysO_WAF\Hardening::isWeakPassword('MotDePasseAdmin', 'admin') === true, 'contient l\'identifiant → rejeté');
+
+echo "\n=== Défense active — auto-ban comportemental ===\n";
+$GLOBALS['__tr'] = [];
+$GLOBALS['__opts'] = ['auto_ban_enabled' => 1, 'auto_ban_threshold' => 5, 'auto_ban_window' => 600, 'auto_ban_duration' => 3600];
+ok(\KeysO_WAF\Logger::isAutoBanned('9.9.9.9') === false, 'IP propre non bannie au départ');
+for ($i = 0; $i < 5; $i++) { \KeysO_WAF\Logger::recordViolation('9.9.9.9'); }
+ok(\KeysO_WAF\Logger::isAutoBanned('9.9.9.9') === true, 'auto-ban après 5 violations (défense active)');
+ok(\KeysO_WAF\Logger::isAutoBanned('1.1.1.1') === false, 'autre IP non affectée');
+$GLOBALS['__opts'] = ['auto_ban_enabled' => 0];
+$GLOBALS['__tr'] = [];
+for ($i = 0; $i < 8; $i++) { \KeysO_WAF\Logger::recordViolation('8.8.8.8'); }
+ok(\KeysO_WAF\Logger::isAutoBanned('8.8.8.8') === false, 'auto-ban désactivé → aucun ban');
 
 echo "\n────────────────────────────────────────\n";
 echo ($fail === 0 ? "✅ TOUS LES TESTS PASSENT" : "❌ $fail ÉCHEC(S)") . "  ($pass réussis)\n";
