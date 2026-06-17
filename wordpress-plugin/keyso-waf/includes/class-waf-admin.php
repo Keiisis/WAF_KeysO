@@ -130,7 +130,7 @@ final class Admin
     {
         $d = keyso_waf_default_options();
         $out = [];
-        foreach (['enabled','scan_rest_bodies','scan_front_post','protect_login','rate_limit','block_honeypot','security_headers','alerts_enabled','idor_enabled','sqli_detection','block_user_enum','generic_login_errors','disable_xmlrpc','db_integrity_alerts'] as $k) {
+        foreach (['enabled','scan_rest_bodies','scan_front_post','protect_login','rate_limit','block_honeypot','security_headers','alerts_enabled','idor_enabled','sqli_detection','block_user_enum','generic_login_errors','disable_xmlrpc','db_integrity_alerts','enforce_strong_passwords','two_factor'] as $k) {
             $out[$k] = !empty($input[$k]) ? 1 : 0;
         }
         $out['blocklist_ips'] = sanitize_textarea_field($input['blocklist_ips'] ?? '');
@@ -234,6 +234,8 @@ final class Admin
                     $this->toggle($o, 'generic_login_errors', __('Messages de login génériques (ne révèle pas les identifiants valides)', 'keyso-waf'));
                     $this->toggle($o, 'db_integrity_alerts', __('Alerte intégrité : création / élévation d\'un administrateur', 'keyso-waf'));
                     $this->toggle($o, 'disable_xmlrpc', __('Désactiver XML-RPC (recommandé si ni Jetpack ni app mobile)', 'keyso-waf'));
+                    $this->toggle($o, 'enforce_strong_passwords', __('Imposer des mots de passe forts (≥12 car., contre le cassage par dictionnaire)', 'keyso-waf'));
+                    $this->toggle($o, 'two_factor', __('Double authentification (2FA TOTP) — enrôlement dans chaque profil utilisateur', 'keyso-waf'));
                     $this->number($o, 'login_max_attempts', __('Tentatives login avant lockout', 'keyso-waf'));
                     $this->number($o, 'login_lockout_min', __('Durée du lockout (minutes)', 'keyso-waf'));
                     $this->number($o, 'rate_limit_max', __('Requêtes max par fenêtre', 'keyso-waf'));

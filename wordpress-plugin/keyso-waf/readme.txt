@@ -4,7 +4,7 @@ Tags: security, firewall, waf, brute-force, idor, ssrf, rce, hardening
 Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 8.0
-Stable tag: 1.6.0
+Stable tag: 1.7.0
 License: Proprietary (commercial)
 
 WAF nouvelle génération : analyse structurelle des payloads, anti-IDOR, brute-force, rate-limiting, honeypot et journal de sécurité. Léger, sans dépendance.
@@ -72,6 +72,21 @@ site est derrière un proxy/CDN, sélectionnez l'en-tête correspondant
 attaquant pourrait usurper son IP et contourner les protections.
 
 == Changelog ==
+
+= 1.7.0 =
+* DOUBLE AUTHENTIFICATION (2FA TOTP, RFC 6238) — compatible Google Authenticator,
+  Authy, Microsoft Authenticator. Implémentation 100% PHP, aucun secret envoyé à
+  un tiers. Enrôlement dans le profil utilisateur (clé secrète + confirmation par
+  code) + 8 codes de secours à usage unique. Appliquée au login : même un mot de
+  passe deviné ou cassé devient inutile sans le code à 6 chiffres. Validé contre
+  le vecteur de test officiel RFC 6238.
+* MOTS DE PASSE FORTS imposés (≥12 caractères, 3 classes de caractères, hors
+  liste de mots de passe communs, différent de l'identifiant). Rend le cassage
+  par dictionnaire — en ligne comme hors-ligne sur un hash volé — infaisable.
+* Ces deux mesures répondent au scénario « base volée + mots de passe faibles » :
+  on ne peut pas rendre un hash déjà fuité incassable, mais on empêche les mots
+  de passe faibles d'exister ET on neutralise tout identifiant compromis via 2FA.
+* Tests portés à 38 cas (TOTP, vecteur RFC, force des mots de passe inclus).
 
 = 1.6.0 =
 * Module DURCISSEMENT WordPress (protection cœur, toujours active) :

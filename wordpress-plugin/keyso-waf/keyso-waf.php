@@ -3,7 +3,7 @@
  * Plugin Name:       KeysO-WAF — Pare-feu applicatif surpuissant
  * Plugin URI:        https://github.com/Keiisis/WAF_KeysO
  * Description:        WAF nouvelle génération : analyse structurelle des payloads (Prototype Pollution, RCE, SSRF, DoS), autorisation au niveau objet (anti-IDOR/BOLA), protection brute-force, rate-limiting, honeypot et journal de sécurité. Léger, sans dépendance externe.
- * Version:           1.6.0
+ * Version:           1.7.0
  * Requires at least: 5.8
  * Requires PHP:      8.0
  * Author:            KeysO
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
     exit; // Pas d'accès direct
 }
 
-define('KEYSO_WAF_VERSION', '1.6.0');
+define('KEYSO_WAF_VERSION', '1.7.0');
 define('KEYSO_WAF_FILE', __FILE__);
 define('KEYSO_WAF_DIR', plugin_dir_path(__FILE__));
 define('KEYSO_WAF_URL', plugin_dir_url(__FILE__));
@@ -42,6 +42,7 @@ require_once KEYSO_WAF_DIR . 'includes/class-waf-alerts.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-rate-limit.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-idor-rules.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-hardening.php';
+require_once KEYSO_WAF_DIR . 'includes/class-waf-2fa.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-guard.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-admin.php';
 
@@ -83,6 +84,8 @@ function keyso_waf_default_options(): array
         'generic_login_errors' => 1,  // messages de login génériques
         'disable_xmlrpc'      => 0,   // désactiver XML-RPC (off : Jetpack/app peuvent l'utiliser)
         'db_integrity_alerts' => 1,   // alerte création/élévation administrateur
+        'enforce_strong_passwords' => 1, // refuse les mots de passe faibles
+        'two_factor'          => 1,   // double authentification TOTP (enrôlement par utilisateur)
 
         // ── Alertes temps réel (A) ──
         'alerts_enabled'        => 0,

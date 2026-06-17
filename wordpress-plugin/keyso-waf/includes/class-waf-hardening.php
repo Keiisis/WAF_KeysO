@@ -72,6 +72,56 @@ final class Hardening
             add_action('set_user_role', [$this, 'onRoleChange'], 10, 3);
             add_action('user_register', [$this, 'onUserRegister'], 10, 1);
         }
+        if (!empty($this->opt['enforce_strong_passwords'])) {
+            add_action('user_profile_update_errors', [$this, 'validateProfilePassword'], 10, 1);
+            add_action('validate_password_reset', [$this, 'validateResetPassword'], 10, 2);
+        }
+    }
+
+    // ── Mots de passe forts (tue le cassage par dictionnaire à la source) ──
+    private const COMMON_PASSWORDS = [
+        'password', 'password1', 'password123', '123456', '12345678', '123456789',
+        'qwerty', 'azerty', 'admin', 'admin123', 'letmein', 'welcome', 'monkey',
+        'iloveyou', 'motdepasse', 'azertyuiop', 'qwertyuiop', 'changeme', 'secret',
+        'root', 'toor', 'pass', 'test', 'guest', 'wordpress', 'soleil', 'bonjour',
+    ];
+
+    /** Un mot de passe est-il faible ? (testable unitairement) */
+    public static function isWeakPassword(string $pwd, string $username = ''): bool
+    {
+        if (strlen($pwd) < 12) return true;
+        $low = strtolower($pwd);
+        if (in_array($low, self::COMMON_PASSWORDS, true)) return true;
+        if ($username !== '' && stripos($pwd, $username) !== false) return true;
+        // Au moins 3 classes de caractères sur 4 (minuscule/majuscule/chiffre/symbole)
+        $classes = 0;
+        if (preg_match('/[a-z]/', $pwd)) $classes++;
+        if (preg_match('/[A-Z]/', $pwd)) $classes++;
+        if (preg_match('/\d/', $pwd))    $classes++;
+        if (preg_match('/[^a-zA-Z0-9]/', $pwd)) $classes++;
+        return $classes < 3;
+    }
+
+    private const PWD_HINT = 'Mot de passe trop faible : au moins 12 caractères, mêlant majuscules, minuscules, chiffres et symboles, et différent de votre identifiant.';
+
+    public function validateProfilePassword($errors): void
+    {
+        $pwd = isset($_POST['pass1']) ? (string) $_POST['pass1'] : '';
+        if ($pwd === '') return; // pas de changement de mot de passe
+        $login = isset($_POST['user_login']) ? sanitize_user(wp_unslash($_POST['user_login'])) : '';
+        if (self::isWeakPassword($pwd, $login) && method_exists($errors, 'add')) {
+            $errors->add('keyso_weak_pwd', __(self::PWD_HINT, 'keyso-waf'));
+        }
+    }
+
+    public function validateResetPassword($errors, $user): void
+    {
+        $pwd = isset($_POST['pass1']) ? (string) $_POST['pass1'] : '';
+        if ($pwd === '') return;
+        $login = ($user && !is_wp_error($user)) ? (string) $user->user_login : '';
+        if (self::isWeakPassword($pwd, $login) && method_exists($errors, 'add')) {
+            $errors->add('keyso_weak_pwd', __(self::PWD_HINT, 'keyso-waf'));
+        }
     }
 
     // ── Détection SQLi (valeurs GET + query string décodée) ──

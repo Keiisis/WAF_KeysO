@@ -37,6 +37,7 @@ require_once $PLUGIN . '/includes/class-waf-idor-rules.php';
 require_once $PLUGIN . '/includes/class-waf-guard.php';
 require_once $PLUGIN . '/includes/class-waf-rate-limit.php';
 require_once $PLUGIN . '/includes/class-waf-hardening.php';
+require_once $PLUGIN . '/includes/class-waf-2fa.php';
 
 use WafCore\BodyScanner;
 use WafCore\Ownership;
@@ -107,6 +108,25 @@ ok(\KeysO_WAF\Hardening::looksLikeSqli("admin' AND extractvalue(1,concat(0x7e,ve
 ok(\KeysO_WAF\Hardening::looksLikeSqli('comment organiser un voyage') === false, 'phrase légitime non flaggée');
 ok(\KeysO_WAF\Hardening::looksLikeSqli('selection de produits') === false, 'mot "selection" non flaggé (faux positif évité)');
 ok(\KeysO_WAF\Hardening::looksLikeSqli('Alexandre') === false, 'prénom non flaggé');
+
+echo "\n=== 2FA — TOTP (RFC 6238) ===\n";
+$b32 = \KeysO_WAF\TwoFactor::base32Encode("Hello!");
+ok(\KeysO_WAF\TwoFactor::base32Decode($b32) === "Hello!", 'base32 aller-retour correct');
+$secret = \KeysO_WAF\TwoFactor::base32Encode(random_bytes(20));
+$now = time();
+$valid = \KeysO_WAF\TwoFactor::code($secret, $now);
+ok(\KeysO_WAF\TwoFactor::verify($secret, $valid) === true, 'code TOTP courant accepté');
+ok(\KeysO_WAF\TwoFactor::verify($secret, '000000') === false || $valid === '000000', 'code erroné rejeté');
+ok(\KeysO_WAF\TwoFactor::verify($secret, \KeysO_WAF\TwoFactor::code($secret, $now - 120)) === false, 'code expiré (-120s) rejeté');
+// Vecteur RFC 6238 connu (secret ASCII "12345678901234567890" en base32, T=59)
+$rfcSecret = \KeysO_WAF\TwoFactor::base32Encode('12345678901234567890');
+ok(\KeysO_WAF\TwoFactor::code($rfcSecret, 59) === '287082', 'vecteur de test RFC 6238 (T=59 → 287082)');
+
+echo "\n=== Mots de passe forts (anti cassage par dictionnaire) ===\n";
+ok(\KeysO_WAF\Hardening::isWeakPassword('password123') === true, 'mot de passe commun rejeté');
+ok(\KeysO_WAF\Hardening::isWeakPassword('Soleil2024') === true, 'trop court (<12) rejeté');
+ok(\KeysO_WAF\Hardening::isWeakPassword('Tr0ub4dour&3xplore!') === false, 'mot de passe fort accepté');
+ok(\KeysO_WAF\Hardening::isWeakPassword('MotDePasseAdmin', 'admin') === true, 'contient l\'identifiant → rejeté');
 
 echo "\n────────────────────────────────────────\n";
 echo ($fail === 0 ? "✅ TOUS LES TESTS PASSENT" : "❌ $fail ÉCHEC(S)") . "  ($pass réussis)\n";

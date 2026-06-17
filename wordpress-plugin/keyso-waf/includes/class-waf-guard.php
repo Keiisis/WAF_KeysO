@@ -69,6 +69,11 @@ final class Guard
         // ── Durcissement WordPress (SQLi, énumération, intégrité base) — cœur ──
         (new Hardening($this->opt))->boot();
 
+        // ── Double authentification TOTP (enrôlement par utilisateur) — cœur ──
+        if (!empty($this->opt['two_factor'])) {
+            (new TwoFactor())->boot();
+        }
+
         // ── Anti-IDOR no-code (B) — fonction PREMIUM (licence valide requise) ──
         if (!empty($this->opt['idor_enabled']) && License::isPro()) {
             (new IdorRules())->boot();
