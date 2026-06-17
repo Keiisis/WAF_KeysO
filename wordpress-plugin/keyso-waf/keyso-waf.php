@@ -3,7 +3,7 @@
  * Plugin Name:       KeysO-WAF — Pare-feu applicatif surpuissant
  * Plugin URI:        https://github.com/Keiisis/WAF_KeysO
  * Description:        WAF nouvelle génération : analyse structurelle des payloads (Prototype Pollution, RCE, SSRF, DoS), autorisation au niveau objet (anti-IDOR/BOLA), protection brute-force, rate-limiting, honeypot et journal de sécurité. Léger, sans dépendance externe.
- * Version:           1.5.0
+ * Version:           1.6.0
  * Requires at least: 5.8
  * Requires PHP:      8.0
  * Author:            KeysO
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
     exit; // Pas d'accès direct
 }
 
-define('KEYSO_WAF_VERSION', '1.5.0');
+define('KEYSO_WAF_VERSION', '1.6.0');
 define('KEYSO_WAF_FILE', __FILE__);
 define('KEYSO_WAF_DIR', plugin_dir_path(__FILE__));
 define('KEYSO_WAF_URL', plugin_dir_url(__FILE__));
@@ -41,6 +41,7 @@ require_once KEYSO_WAF_DIR . 'includes/class-waf-logger.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-alerts.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-rate-limit.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-idor-rules.php';
+require_once KEYSO_WAF_DIR . 'includes/class-waf-hardening.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-guard.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-admin.php';
 
@@ -75,6 +76,13 @@ function keyso_waf_default_options(): array
         'blocklist_ips'       => '',  // IPs bloquées d'office (une par ligne)
         'scan_front_post'     => 0,   // scanner les POST de formulaires front
         'block_message'       => '',  // message de blocage personnalisé (vide = défaut)
+
+        // ── Durcissement WordPress ──
+        'sqli_detection'      => 1,   // détection injection SQL (GET / query string)
+        'block_user_enum'     => 1,   // anti-énumération (?author=, REST /users)
+        'generic_login_errors' => 1,  // messages de login génériques
+        'disable_xmlrpc'      => 0,   // désactiver XML-RPC (off : Jetpack/app peuvent l'utiliser)
+        'db_integrity_alerts' => 1,   // alerte création/élévation administrateur
 
         // ── Alertes temps réel (A) ──
         'alerts_enabled'        => 0,

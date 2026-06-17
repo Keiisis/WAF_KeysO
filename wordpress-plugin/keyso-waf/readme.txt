@@ -4,7 +4,7 @@ Tags: security, firewall, waf, brute-force, idor, ssrf, rce, hardening
 Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 8.0
-Stable tag: 1.5.0
+Stable tag: 1.6.0
 License: Proprietary (commercial)
 
 WAF nouvelle génération : analyse structurelle des payloads, anti-IDOR, brute-force, rate-limiting, honeypot et journal de sécurité. Léger, sans dépendance.
@@ -72,6 +72,25 @@ site est derrière un proxy/CDN, sélectionnez l'en-tête correspondant
 attaquant pourrait usurper son IP et contourner les protections.
 
 == Changelog ==
+
+= 1.6.0 =
+* Module DURCISSEMENT WordPress (protection cœur, toujours active) :
+  - Détection d'INJECTION SQL sur les paramètres GET / la query string
+    (UNION SELECT, boolean ' OR '1'='1, stacked ; DROP, time-based sleep(),
+    error-based extractvalue…). Scan dé-slashé (wp_unslash) pour ne pas être
+    contourné par les quotes échappées de WordPress.
+  - Anti-ÉNUMÉRATION des utilisateurs : blocage de ?author=N et de l'endpoint
+    REST /wp/v2/users pour les visiteurs non connectés (empêche la récolte des
+    identifiants à cibler en brute-force).
+  - Messages de login GÉNÉRIQUES (ne révèlent pas si un identifiant existe).
+  - Surveillance d'INTÉGRITÉ : alerte lorsqu'un compte administrateur est créé
+    ou qu'un utilisateur est élevé en admin (persistance post-intrusion).
+  - Désactivation optionnelle de XML-RPC (vecteur brute-force / pingback DDoS).
+* Tests portés à 29 cas (dont SQLi + anti-faux-positifs). Validé en attaques
+  réelles sur WordPress : SQLi 6/6 bloquées, 0 faux positif sur contenu légitime.
+* Note : WordPress stocke les mots de passe hachés (phpass/bcrypt) — ils ne
+  peuvent pas être « récupérés » en clair, même avec un accès base. Ce module
+  réduit la capacité à cibler et à persister ; il ne remplace pas HTTPS.
 
 = 1.5.0 =
 * Activation par CLÉ DE LICENCE (anti-piratage) : page Licence, vérification

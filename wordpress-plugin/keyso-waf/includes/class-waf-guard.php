@@ -66,6 +66,9 @@ final class Guard
             add_action('wp_login', [$this, 'onLoginSuccess'], 10, 2);
         }
 
+        // ── Durcissement WordPress (SQLi, énumération, intégrité base) — cœur ──
+        (new Hardening($this->opt))->boot();
+
         // ── Anti-IDOR no-code (B) — fonction PREMIUM (licence valide requise) ──
         if (!empty($this->opt['idor_enabled']) && License::isPro()) {
             (new IdorRules())->boot();

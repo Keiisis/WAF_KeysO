@@ -36,6 +36,7 @@ require_once $PLUGIN . '/includes/Ownership.php';
 require_once $PLUGIN . '/includes/class-waf-idor-rules.php';
 require_once $PLUGIN . '/includes/class-waf-guard.php';
 require_once $PLUGIN . '/includes/class-waf-rate-limit.php';
+require_once $PLUGIN . '/includes/class-waf-hardening.php';
 
 use WafCore\BodyScanner;
 use WafCore\Ownership;
@@ -96,6 +97,16 @@ for ($i = 0; $i < 5; $i++) { \KeysO_WAF\RateLimit::registerFailedLogin('1.2.3.4'
 ok(\KeysO_WAF\RateLimit::isLoginLocked('1.2.3.4') === true, 'lockout après 5 échecs de login (brute-force)');
 \KeysO_WAF\RateLimit::clearFailedLogin('1.2.3.4');
 ok(\KeysO_WAF\RateLimit::isLoginLocked('1.2.3.4') === false, 'déverrouillage après login réussi');
+
+echo "\n=== Hardening — détection SQLi (paramètres) ===\n";
+ok(\KeysO_WAF\Hardening::looksLikeSqli("1 UNION SELECT user_login,user_pass FROM wp_users") === true, 'UNION SELECT détecté');
+ok(\KeysO_WAF\Hardening::looksLikeSqli("1' OR '1'='1") === true, "boolean ' OR '1'='1 détecté");
+ok(\KeysO_WAF\Hardening::looksLikeSqli("1; DROP TABLE wp_users") === true, 'stacked DROP détecté');
+ok(\KeysO_WAF\Hardening::looksLikeSqli("1 AND sleep(5)") === true, 'time-based sleep() détecté');
+ok(\KeysO_WAF\Hardening::looksLikeSqli("admin' AND extractvalue(1,concat(0x7e,version()))") === true, 'error-based extractvalue détecté');
+ok(\KeysO_WAF\Hardening::looksLikeSqli('comment organiser un voyage') === false, 'phrase légitime non flaggée');
+ok(\KeysO_WAF\Hardening::looksLikeSqli('selection de produits') === false, 'mot "selection" non flaggé (faux positif évité)');
+ok(\KeysO_WAF\Hardening::looksLikeSqli('Alexandre') === false, 'prénom non flaggé');
 
 echo "\n────────────────────────────────────────\n";
 echo ($fail === 0 ? "✅ TOUS LES TESTS PASSENT" : "❌ $fail ÉCHEC(S)") . "  ($pass réussis)\n";

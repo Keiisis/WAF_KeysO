@@ -130,7 +130,7 @@ final class Admin
     {
         $d = keyso_waf_default_options();
         $out = [];
-        foreach (['enabled','scan_rest_bodies','scan_front_post','protect_login','rate_limit','block_honeypot','security_headers','alerts_enabled','idor_enabled'] as $k) {
+        foreach (['enabled','scan_rest_bodies','scan_front_post','protect_login','rate_limit','block_honeypot','security_headers','alerts_enabled','idor_enabled','sqli_detection','block_user_enum','generic_login_errors','disable_xmlrpc','db_integrity_alerts'] as $k) {
             $out[$k] = !empty($input[$k]) ? 1 : 0;
         }
         $out['blocklist_ips'] = sanitize_textarea_field($input['blocklist_ips'] ?? '');
@@ -226,6 +226,14 @@ final class Admin
                     $this->toggle($o, 'rate_limit', __('Limitation du débit par IP', 'keyso-waf'));
                     $this->toggle($o, 'block_honeypot', __('Blocage des chemins pièges (honeypot)', 'keyso-waf'));
                     $this->toggle($o, 'security_headers', __('En-têtes de sécurité HTTP', 'keyso-waf'));
+                    ?>
+                    <tr><th colspan="2"><h2 style="margin:18px 0 0"><?php esc_html_e('🔒 Durcissement WordPress', 'keyso-waf'); ?></h2></th></tr>
+                    <?php
+                    $this->toggle($o, 'sqli_detection', __('Détection d\'injection SQL (paramètres GET / URL)', 'keyso-waf'));
+                    $this->toggle($o, 'block_user_enum', __('Anti-énumération des utilisateurs (?author=, REST /users)', 'keyso-waf'));
+                    $this->toggle($o, 'generic_login_errors', __('Messages de login génériques (ne révèle pas les identifiants valides)', 'keyso-waf'));
+                    $this->toggle($o, 'db_integrity_alerts', __('Alerte intégrité : création / élévation d\'un administrateur', 'keyso-waf'));
+                    $this->toggle($o, 'disable_xmlrpc', __('Désactiver XML-RPC (recommandé si ni Jetpack ni app mobile)', 'keyso-waf'));
                     $this->number($o, 'login_max_attempts', __('Tentatives login avant lockout', 'keyso-waf'));
                     $this->number($o, 'login_lockout_min', __('Durée du lockout (minutes)', 'keyso-waf'));
                     $this->number($o, 'rate_limit_max', __('Requêtes max par fenêtre', 'keyso-waf'));
