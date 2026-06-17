@@ -85,8 +85,14 @@ attaquant pourrait usurper son IP et contourner les protections.
 * Rate-limiting : incrément ATOMIQUE via object cache (Redis/Memcached) si
   présent — élimine la condition de course sous forte charge.
 * Internationalisation : fichier de traduction `languages/keyso-waf.pot`.
-* Tests d'exécution du moteur (17 cas : body scanner, anti-IDOR, anti-injection,
-  détection d'IP anti-spoofing) — `wordpress-plugin/tests/test-plugin.php`.
+* Path traversal renforcé : détection sur l'URI COMPLÈTE (path + query string)
+  et formes encodées (double-décodage %2e%2e / %252e), attrapant les LFI via
+  paramètre (ex: ?file=../../wp-config.php) auparavant manquées.
+* Tests d'exécution du moteur (21 cas : body scanner, anti-IDOR, anti-injection,
+  détection d'IP anti-spoofing, rate-limit, lockout brute-force) —
+  `wordpress-plugin/tests/test-plugin.php`. Validé en attaques réelles sur
+  WordPress (Playground) : prototype pollution, RCE, SSRF, DoS, honeypot,
+  traversal, rate-limit et en-têtes de sécurité tous confirmés.
 
 = 1.4.0 =
 * Sécurité : durcissement de la détection d'IP cliente. Par défaut `REMOTE_ADDR`

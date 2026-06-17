@@ -152,10 +152,20 @@ final class Guard
                 wp_die(esc_html__('Introuvable.', 'keyso-waf'), '', ['response' => 404]);
             }
         }
-        // Path traversal grossier
-        if (strpos($uri, '../') !== false || strpos($uri, '..\\') !== false) {
-            $this->block('path_traversal', 'path_traversal', "Path traversal : {$uri}");
-            wp_die(esc_html__('Requête invalide.', 'keyso-waf'), '', ['response' => 400]);
+        // Path traversal — on inspecte l'URI COMPLÈTE (path + query string) et
+        // sa forme DÉCODÉE (double-décodage) pour attraper les variantes encodées
+        // %2e%2e%2f / %252e… et les LFI via paramètre (ex: ?file=../../wp-config.php),
+        // que le simple check du path normalisé manquait.
+        $rawUri  = (string) ($_SERVER['REQUEST_URI'] ?? '');
+        $decoded = strtolower(rawurldecode(rawurldecode($rawUri)));
+        if (
+            strpos($decoded, '../') !== false ||
+            strpos($decoded, '..\\') !== false ||
+            strpos($decoded, '....//') !== false
+        ) {
+            $this->block('path_traversal', 'path_traversal', 'Path traversal : ' . substr($rawUri, 0, 200));
+            status_header(400);
+            wp_die(esc_html($this->msg()), esc_html__('Requête invalide', 'keyso-waf'), ['response' => 400]);
         }
     }
 

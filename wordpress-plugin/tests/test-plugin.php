@@ -20,10 +20,22 @@ if (!function_exists('keyso_waf_get_options')) {
     function keyso_waf_get_options(): array { return $GLOBALS['__opts']; }
 }
 
+// Stubs transients (in-memory) + object cache pour tester le rate-limit / lockout
+if (!function_exists('wp_using_ext_object_cache')) {
+    function wp_using_ext_object_cache(): bool { return false; }
+}
+if (!function_exists('get_transient')) {
+    $GLOBALS['__tr'] = [];
+    function get_transient(string $k) { return $GLOBALS['__tr'][$k] ?? false; }
+    function set_transient(string $k, $v, $ttl = 0): bool { $GLOBALS['__tr'][$k] = $v; return true; }
+    function delete_transient(string $k): bool { unset($GLOBALS['__tr'][$k]); return true; }
+}
+
 require_once $PLUGIN . '/includes/BodyScanner.php';
 require_once $PLUGIN . '/includes/Ownership.php';
 require_once $PLUGIN . '/includes/class-waf-idor-rules.php';
 require_once $PLUGIN . '/includes/class-waf-guard.php';
+require_once $PLUGIN . '/includes/class-waf-rate-limit.php';
 
 use WafCore\BodyScanner;
 use WafCore\Ownership;
@@ -72,6 +84,18 @@ ok(Guard::staticClientIp() === '1.2.3.4', 'proxy configuré : en-tête de confia
 // En-tête de confiance configuré mais absent → repli REMOTE_ADDR
 unset($_SERVER['HTTP_X_FORWARDED_FOR']);
 ok(Guard::staticClientIp() === '203.0.113.10', 'en-tête absent : repli sur REMOTE_ADDR');
+
+echo "\n=== RateLimit — rate-limiting & lockout brute-force ===\n";
+$GLOBALS['__tr'] = [];
+$over = false;
+for ($i = 0; $i < 6; $i++) { if (\KeysO_WAF\RateLimit::hit('req_1.2.3.4', 5, 60)) $over = true; }
+ok($over === true, 'rate-limit : dépassement détecté au-delà du seuil');
+$GLOBALS['__tr'] = [];
+ok(\KeysO_WAF\RateLimit::isLoginLocked('1.2.3.4') === false, 'IP non verrouillée au départ');
+for ($i = 0; $i < 5; $i++) { \KeysO_WAF\RateLimit::registerFailedLogin('1.2.3.4', 5, 15); }
+ok(\KeysO_WAF\RateLimit::isLoginLocked('1.2.3.4') === true, 'lockout après 5 échecs de login (brute-force)');
+\KeysO_WAF\RateLimit::clearFailedLogin('1.2.3.4');
+ok(\KeysO_WAF\RateLimit::isLoginLocked('1.2.3.4') === false, 'déverrouillage après login réussi');
 
 echo "\n────────────────────────────────────────\n";
 echo ($fail === 0 ? "✅ TOUS LES TESTS PASSENT" : "❌ $fail ÉCHEC(S)") . "  ($pass réussis)\n";

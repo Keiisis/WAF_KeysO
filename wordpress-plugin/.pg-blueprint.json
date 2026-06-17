@@ -1,0 +1,8 @@
+{
+  "landingPage": "/",
+  "preferredVersions": { "php": "8.3", "wp": "latest" },
+  "steps": [
+    { "step": "login", "username": "admin", "password": "password" },
+    { "step": "activatePlugin", "pluginPath": "keyso-waf/keyso-waf.php" }
+  ]
+}
