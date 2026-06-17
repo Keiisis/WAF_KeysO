@@ -242,6 +242,12 @@ final class TwoFactor
         if (!get_user_meta($user->ID, self::META_ENABLED, true)) {
             return $user;
         }
+        // XML-RPC ne peut pas transporter de code TOTP → l'auth d'un compte 2FA
+        // par cette voie est REFUSÉE (sinon l'attaquant contourne le 2nd facteur
+        // via xmlrpc system.multicall). Couverture complète du brute-force.
+        if (defined('XMLRPC_REQUEST') && XMLRPC_REQUEST) {
+            return new \WP_Error('keyso_2fa_xmlrpc', __('Accès XML-RPC refusé pour les comptes à double authentification.', 'keyso-waf'));
+        }
         // Contexte sans formulaire (ex. cookie déjà valide) : on laisse passer
         if (!isset($_POST['log']) && !isset($_POST['pwd'])) {
             return $user;

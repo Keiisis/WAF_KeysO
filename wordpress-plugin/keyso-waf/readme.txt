@@ -4,7 +4,7 @@ Tags: security, firewall, waf, brute-force, idor, ssrf, rce, hardening
 Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 8.0
-Stable tag: 1.7.0
+Stable tag: 1.7.1
 License: Proprietary (commercial)
 
 WAF nouvelle génération : analyse structurelle des payloads, anti-IDOR, brute-force, rate-limiting, honeypot et journal de sécurité. Léger, sans dépendance.
@@ -72,6 +72,18 @@ site est derrière un proxy/CDN, sélectionnez l'en-tête correspondant
 attaquant pourrait usurper son IP et contourner les protections.
 
 == Changelog ==
+
+= 1.7.1 =
+* Sécurité : la double authentification couvre désormais XML-RPC. L'auth d'un
+  compte 2FA via xmlrpc (qui ne peut pas transporter de code TOTP) est REFUSÉE,
+  fermant le contournement du second facteur par system.multicall. Faille
+  découverte et corrigée lors de tests d'attaque réels (wpscan) sur un
+  WordPress + MySQL conteneurisé.
+* Validation par attaques réelles : wpscan (attaque par mot de passe incluant un
+  mot de passe faible connu) → « No Valid Passwords Found » + étranglement
+  HTTP 429 ; brute-force wp-login → lockout (connexion refusée même avec le bon
+  mot de passe) ; 2FA → login refusé sans code, accepté avec code TOTP valide ;
+  SQLi / énumération / honeypot / en-têtes tous confirmés sur WordPress réel.
 
 = 1.7.0 =
 * DOUBLE AUTHENTIFICATION (2FA TOTP, RFC 6238) — compatible Google Authenticator,
