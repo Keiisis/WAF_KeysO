@@ -4,7 +4,7 @@ Tags: security, firewall, waf, brute-force, idor, ssrf, rce, hardening
 Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 8.0
-Stable tag: 1.8.0
+Stable tag: 1.9.0
 License: Proprietary (commercial)
 
 WAF nouvelle génération : analyse structurelle des payloads, anti-IDOR, brute-force, rate-limiting, honeypot et journal de sécurité. Léger, sans dépendance.
@@ -72,6 +72,27 @@ site est derrière un proxy/CDN, sélectionnez l'en-tête correspondant
 attaquant pourrait usurper son IP et contourner les protections.
 
 == Changelog ==
+
+= 1.9.0 =
+* Comble les 4 surfaces restantes (validé par attaques réelles) :
+  - XSS : détection de <script>, gestionnaires on*, javascript:, <iframe>/<svg>
+    dans les entrées GET et POST. Exempte les utilisateurs unfiltered_html
+    (admins/éditeurs) pour zéro faux positif sur le contenu légitime.
+  - Scanner d'UPLOAD (anti web-shell) : refuse extensions exécutables, doubles
+    extensions (shell.php.jpg), code PHP embarqué, polyglotes (GIF+PHP),
+    incohérences MIME. Validé : web-shell refusé sous 3 formes.
+  - SQLi sur POST (option) avec la même garde anti-faux-positif.
+  - admin-ajax.php couvert par le scan profond.
+* Détection d'INTRUSION & transport (réduit l'impact d'une compromission) :
+  - Alerte si siteurl/home est modifié (défacement / hijack post-intrusion).
+  - Liaison de session optionnelle : un cookie admin rejoué depuis une autre IP
+    est détecté → déconnexion (anti vol de session).
+  - Forçage HTTPS admin + HSTS ; alertes de posture (PHP/WP obsolète, HTTPS).
+* Honnêteté : un plugin ne peut PAS empêcher un serveur compromis, un vol de
+  base par accès SSH, un détournement DNS ni un zero-day de WordPress core — il
+  les DÉTECTE et en limite l'impact (2FA + mots de passe forts rendent une base
+  volée inutile). Le « RLS » pour WordPress = le moteur d'ownership anti-IDOR.
+* Tests portés à 48 cas (XSS inclus).
 
 = 1.8.0 =
 * Module SURFACES & limitation post-intrusion (couvre bien plus que wp-login) :

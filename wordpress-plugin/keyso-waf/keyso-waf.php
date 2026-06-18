@@ -3,7 +3,7 @@
  * Plugin Name:       KeysO-WAF — Pare-feu applicatif surpuissant
  * Plugin URI:        https://github.com/Keiisis/WAF_KeysO
  * Description:        WAF nouvelle génération : analyse structurelle des payloads (Prototype Pollution, RCE, SSRF, DoS), autorisation au niveau objet (anti-IDOR/BOLA), protection brute-force, rate-limiting, honeypot et journal de sécurité. Léger, sans dépendance externe.
- * Version:           1.8.0
+ * Version:           1.9.0
  * Requires at least: 5.8
  * Requires PHP:      8.0
  * Author:            KeysO
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
     exit; // Pas d'accès direct
 }
 
-define('KEYSO_WAF_VERSION', '1.8.0');
+define('KEYSO_WAF_VERSION', '1.9.0');
 define('KEYSO_WAF_FILE', __FILE__);
 define('KEYSO_WAF_DIR', plugin_dir_path(__FILE__));
 define('KEYSO_WAF_URL', plugin_dir_url(__FILE__));
@@ -44,6 +44,9 @@ require_once KEYSO_WAF_DIR . 'includes/class-waf-idor-rules.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-hardening.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-2fa.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-surface.php';
+require_once KEYSO_WAF_DIR . 'includes/class-waf-deepscan.php';
+require_once KEYSO_WAF_DIR . 'includes/class-waf-upload.php';
+require_once KEYSO_WAF_DIR . 'includes/class-waf-integrity.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-guard.php';
 require_once KEYSO_WAF_DIR . 'includes/class-waf-admin.php';
 
@@ -94,6 +97,17 @@ function keyso_waf_default_options(): array
         'restrict_app_passwords'   => 1, // Application Passwords refusés aux comptes 2FA
         'protect_sensitive_paths'  => 1, // bloque readme.html, *.sql, *.bak, debug.log, .git…
         'admin_ip_allowlist'       => '', // si renseigné : seules ces IP accèdent à wp-admin/wp-login
+
+        // ── Scan profond & uploads ──
+        'xss_detection'      => 1,    // détection XSS (GET toujours, POST non-privilégié)
+        'sqli_post'          => 0,    // étendre la détection SQLi aux corps POST (opt-in)
+        'upload_scan'        => 1,    // scanner les fichiers uploadés (anti web-shell)
+
+        // ── Détection d'intrusion & transport ──
+        'detect_siteurl_tamper' => 1, // alerte si siteurl/home est modifié
+        'force_ssl_admin'    => 0,    // force HTTPS sur l'admin + HSTS (n'activer que si TLS OK)
+        'session_binding'    => 0,    // lie la session admin à l'IP (anti vol de cookie ; FP si IP change)
+        'posture_alerts'     => 1,    // alerte PHP/WP obsolète, HTTPS absent
 
         // ── Défense active (auto-ban comportemental) ──
         'auto_ban_enabled'   => 1,    // bannit une IP qui accumule des blocages

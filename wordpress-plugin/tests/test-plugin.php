@@ -39,6 +39,7 @@ require_once $PLUGIN . '/includes/class-waf-rate-limit.php';
 require_once $PLUGIN . '/includes/class-waf-hardening.php';
 require_once $PLUGIN . '/includes/class-waf-2fa.php';
 require_once $PLUGIN . '/includes/class-waf-logger.php';
+require_once $PLUGIN . '/includes/class-waf-deepscan.php';
 
 use WafCore\BodyScanner;
 use WafCore\Ownership;
@@ -140,6 +141,14 @@ $GLOBALS['__opts'] = ['auto_ban_enabled' => 0];
 $GLOBALS['__tr'] = [];
 for ($i = 0; $i < 8; $i++) { \KeysO_WAF\Logger::recordViolation('8.8.8.8'); }
 ok(\KeysO_WAF\Logger::isAutoBanned('8.8.8.8') === false, 'auto-ban désactivé → aucun ban');
+
+echo "\n=== DeepScan — détection XSS ===\n";
+ok(\KeysO_WAF\DeepScan::looksLikeXss('<script>alert(1)</script>') === true, 'balise <script> détectée');
+ok(\KeysO_WAF\DeepScan::looksLikeXss('<img src=x onerror=alert(1)>') === true, 'gestionnaire onerror= détecté');
+ok(\KeysO_WAF\DeepScan::looksLikeXss('<a href="javascript:steal()">') === true, 'URI javascript: détectée');
+ok(\KeysO_WAF\DeepScan::looksLikeXss('<svg onload=alert(1)>') === true, 'svg onload détecté');
+ok(\KeysO_WAF\DeepScan::looksLikeXss('Bonjour, comment allez-vous ?') === false, 'phrase normale non flaggée');
+ok(\KeysO_WAF\DeepScan::looksLikeXss('prix < 100 et > 50') === false, 'comparateurs <,> non flaggés (faux positif évité)');
 
 echo "\n────────────────────────────────────────\n";
 echo ($fail === 0 ? "✅ TOUS LES TESTS PASSENT" : "❌ $fail ÉCHEC(S)") . "  ($pass réussis)\n";

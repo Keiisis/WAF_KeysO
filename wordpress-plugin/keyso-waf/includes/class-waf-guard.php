@@ -78,6 +78,19 @@ final class Guard
         // ── Durcissement des surfaces & limitation post-intrusion — cœur ──
         (new Surface($this->opt))->boot();
 
+        // ── Scan profond (XSS / SQLi POST / admin-ajax) — cœur ──
+        if (!empty($this->opt['xss_detection']) || !empty($this->opt['sqli_post'])) {
+            (new DeepScan($this->opt))->boot();
+        }
+
+        // ── Scanner d'uploads (anti web-shell) — cœur ──
+        if (!empty($this->opt['upload_scan'])) {
+            (new Upload())->boot();
+        }
+
+        // ── Détection d'intrusion & transport — cœur ──
+        (new Integrity($this->opt))->boot();
+
         // ── Double authentification TOTP (enrôlement par utilisateur) — cœur ──
         if (!empty($this->opt['two_factor'])) {
             (new TwoFactor())->boot();

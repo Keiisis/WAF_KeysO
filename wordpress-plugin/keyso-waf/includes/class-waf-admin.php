@@ -130,7 +130,7 @@ final class Admin
     {
         $d = keyso_waf_default_options();
         $out = [];
-        foreach (['enabled','scan_rest_bodies','scan_front_post','protect_login','rate_limit','block_honeypot','security_headers','alerts_enabled','idor_enabled','sqli_detection','block_user_enum','generic_login_errors','disable_xmlrpc','db_integrity_alerts','enforce_strong_passwords','two_factor','disable_file_editor','lock_plugin_theme_install','restrict_app_passwords','protect_sensitive_paths','auto_ban_enabled'] as $k) {
+        foreach (['enabled','scan_rest_bodies','scan_front_post','protect_login','rate_limit','block_honeypot','security_headers','alerts_enabled','idor_enabled','sqli_detection','block_user_enum','generic_login_errors','disable_xmlrpc','db_integrity_alerts','enforce_strong_passwords','two_factor','disable_file_editor','lock_plugin_theme_install','restrict_app_passwords','protect_sensitive_paths','auto_ban_enabled','xss_detection','sqli_post','upload_scan','detect_siteurl_tamper','force_ssl_admin','session_binding','posture_alerts'] as $k) {
             $out[$k] = !empty($input[$k]) ? 1 : 0;
         }
         $out['admin_ip_allowlist'] = sanitize_textarea_field($input['admin_ip_allowlist'] ?? '');
@@ -240,6 +240,19 @@ final class Admin
                     $this->toggle($o, 'disable_xmlrpc', __('Désactiver XML-RPC (recommandé si ni Jetpack ni app mobile)', 'keyso-waf'));
                     $this->toggle($o, 'enforce_strong_passwords', __('Imposer des mots de passe forts (≥12 car., contre le cassage par dictionnaire)', 'keyso-waf'));
                     $this->toggle($o, 'two_factor', __('Double authentification (2FA TOTP) — enrôlement dans chaque profil utilisateur', 'keyso-waf'));
+                    ?>
+                    <tr><th colspan="2"><h2 style="margin:18px 0 0"><?php esc_html_e('🔬 Scan profond & uploads', 'keyso-waf'); ?></h2></th></tr>
+                    <?php
+                    $this->toggle($o, 'xss_detection', __('Détection XSS dans les entrées (GET + POST non privilégié)', 'keyso-waf'));
+                    $this->toggle($o, 'sqli_post', __('Étendre la détection SQLi aux corps POST (peut être sensible)', 'keyso-waf'));
+                    $this->toggle($o, 'upload_scan', __('Scanner les fichiers uploadés (anti web-shell PHP déguisé)', 'keyso-waf'));
+                    ?>
+                    <tr><th colspan="2"><h2 style="margin:18px 0 0"><?php esc_html_e('🕵️ Détection d\'intrusion & transport', 'keyso-waf'); ?></h2></th></tr>
+                    <?php
+                    $this->toggle($o, 'detect_siteurl_tamper', __('Alerte si l\'URL du site (siteurl/home) est modifiée — signe de compromission', 'keyso-waf'));
+                    $this->toggle($o, 'posture_alerts', __('Alertes de posture (PHP/WordPress obsolète, HTTPS absent)', 'keyso-waf'));
+                    $this->toggle($o, 'force_ssl_admin', __('Forcer HTTPS sur l\'administration + HSTS (n\'activer qu\'avec un certificat TLS)', 'keyso-waf'));
+                    $this->toggle($o, 'session_binding', __('Lier la session admin à l\'IP (anti vol de cookie ; ⚠️ faux positifs si IP change)', 'keyso-waf'));
                     ?>
                     <tr><th colspan="2"><h2 style="margin:18px 0 0"><?php esc_html_e('🧱 Surfaces & limitation post-intrusion', 'keyso-waf'); ?></h2></th></tr>
                     <?php
